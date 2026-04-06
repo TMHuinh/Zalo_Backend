@@ -14,13 +14,54 @@ const { UserService } = require("./user.service");
 const UserController = {
   register: async (req, res, next) => {
     try {
-      const { fullName, phone, password } = req.body;
-      const result = await UserService.register(fullName, phone, password);
-      return res.status(200).json(
-        ApiResponse(1000, {
-          result,
-        }),
-      );
+      const { fullName, email, password } = req.body;
+      const result = await UserService.register(fullName, email, password);
+
+      res.status(201).json({
+        message: "Register success",
+        result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+  forgetPassword: async (req, res, next) => {
+    try {
+      const { email } = req.body;
+      const result = await UserService.forgetPassword(email);
+
+      res.status(200).json({
+        message: "Forgot password success",
+        result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  verifyEmailOtp: async (req, res, next) => {
+    try {
+      const { email, otp } = req.body;
+      const result = await UserService.verifyEmailOtp(email, otp);
+
+      res.status(200).json({
+        message: "Verify success",
+        result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  resendEmailOtp: async (req, res, next) => {
+    try {
+      const { email } = req.body;
+      const result = await UserService.resendEmailOtp(email);
+
+      res.status(200).json({
+        message: "Resend OTP success",
+        result,
+      });
     } catch (error) {
       next(error);
     }
@@ -41,7 +82,6 @@ const UserController = {
   // GET BY ID
   getById: async (req, res, next) => {
     try {
-
       const { id } = req.params;
 
       const user = await UserService.getUserById(id);
@@ -49,7 +89,7 @@ const UserController = {
       return res.json(
         ApiResponse(1000, {
           result: user,
-        })
+        }),
       );
     } catch (err) {
       next(err);
@@ -63,18 +103,17 @@ const UserController = {
       // console.log("UserId từ middleware:", req.userId);
       // console.log("Body nhận được:", req.body);
 
-
       const result = await UserService.changePassword(
         userId,
         oldPassword,
         newPassword,
-        confirmPassword
+        confirmPassword,
       );
 
       return res.json(ApiResponse(1000, { result }));
     } catch (err) {
       next(err);
     }
-  }
+  },
 };
 module.exports = { UserController };

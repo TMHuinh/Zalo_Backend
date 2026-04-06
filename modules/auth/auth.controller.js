@@ -4,9 +4,9 @@ const { AuthService } = require("./auth.service");
 const AuthController = {
   login: async (req, res, next) => {
     try {
-      const { phone, password } = req.body;
+      const { email, password } = req.body;
 
-      const result = await AuthService.login({ phone, password });
+      const result = await AuthService.login({ email, password });
 
       // set refresh token vào cookie
       res.cookie("refreshToken", result.refreshToken, {
