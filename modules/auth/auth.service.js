@@ -1,10 +1,10 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import User from "../models/User.js";
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const User = require("../../models/user.model");
+const { AppError } = require("../../utils/AppError");
 
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "access_secret";
-const REFRESH_TOKEN_SECRET =
-  process.env.REFRESH_TOKEN_SECRET || "refresh_secret";
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 
 const AuthService = {
   generateToken: (user) => {
@@ -48,21 +48,21 @@ const AuthService = {
     const user = await User.findOne({ phone });
 
     if (!user) {
-      throw new Error("Số điện thoại không tồn tại");
+      throw AppError(404, "Số điện thoại không tồn tại", 1404);
     }
 
     if (user.status && user.status !== "active") {
-      throw new Error("Tài khoản đã bị khóa hoặc không hoạt động");
+      throw AppError(400, "Tài khoản bị khóa hoặc không hoạt động", 1400);
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
-      throw new Error("Mật khẩu không đúng");
+      throw AppError(400, "Mật khẩu không chính xác", 1400);
     }
 
-    const accessToken = this.generateToken(user);
-    const refreshToken = this.generateRefreshToken(user);
+    const accessToken = AuthService.generateToken(user);
+    const refreshToken = AuthService.generateRefreshToken(user);
 
     await User.findByIdAndUpdate(user._id, {
       refreshToken,
@@ -71,12 +71,6 @@ const AuthService = {
     });
 
     return {
-      user: {
-        _id: user._id,
-        fullName: user.fullName,
-        phone: user.phone,
-        avatarUrl: user.avatarUrl,
-      },
       accessToken,
       refreshToken,
     };
@@ -95,4 +89,4 @@ const AuthService = {
   },
 };
 
-export default AuthService;
+module.exports = { AuthService };
