@@ -25,5 +25,36 @@ const UserController = {
       next(error);
     }
   },
+  getAll: async (req, res, next) => {
+    try {
+      const users = await UserService.getAllUsers();
+
+      res.status(200).json({
+        message: "Lấy danh sách user thành công",
+        data: users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // GET BY ID
+  getById: async (req, res, next) => {
+    try {
+
+      const { id } = req.params;
+
+      const user = await UserService.getUserById(id);
+
+      return res.json(
+        ApiResponse(1000, {
+          result: user,
+        })
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+ 
 };
 module.exports = { UserController };

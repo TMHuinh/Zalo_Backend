@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const User = require("../../models/user.model");
 const { AppError } = require("../../utils/AppError");
+const mongoose = require("mongoose");
 
 const UserService = {
   register: async (fullName, phone, password) => {
@@ -30,6 +31,32 @@ const UserService = {
       fullName: newUser.fullName,
       phone: newUser.phone,
     };
+  },
+  // GET ALL USERS
+  getAllUsers: async () => {
+    const users = await User.find().select("-passwordHash"); // loại bỏ password
+
+    return users;
+  },
+
+  // GET USER BY ID
+  getUserById: async (id) => {
+
+    // 1. kiểm tra id hợp lệ
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw AppError(400, "ID không hợp lệ", 1400);
+    }
+
+    // 2. tìm user
+    const user = await User.findById(id).select("-passwordHash -refreshToken");
+
+
+    if (!user) {
+      throw AppError(404, "Không tìm thấy user", 1404);
+    }
+
+    // 3. return
+    return user;
   },
 };
 
