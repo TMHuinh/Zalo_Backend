@@ -26,6 +26,31 @@ const AuthController = {
       next(err);
     }
   },
+  // LOGOUT
+  // LOGOUT
+  logout: async (req, res, next) => {
+    try {
+      const userId = req.userId; // từ middleware authMiddleware
+
+      if (!userId) {
+        return res.status(400).json(ApiResponse(1001, "User không tồn tại"));
+      }
+
+      // gọi service logout
+      await AuthService.logout(userId);
+
+      // xóa cookie refreshToken
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: false,
+        sameSite: "Strict",
+      });
+
+      return res.status(200).json(ApiResponse(1000, "Đăng xuất thành công"));
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 module.exports = { AuthController };
