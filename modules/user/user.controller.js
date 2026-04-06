@@ -55,6 +55,26 @@ const UserController = {
       next(err);
     }
   },
- 
+  changePassword: async (req, res, next) => {
+    try {
+      const userId = req.userId; // ✅ lấy đúng từ middleware
+      const { oldPassword, newPassword, confirmPassword } = req.body;
+      // console.log("=== DEBUG CHANGE PASSWORD ===");
+      // console.log("UserId từ middleware:", req.userId);
+      // console.log("Body nhận được:", req.body);
+
+
+      const result = await UserService.changePassword(
+        userId,
+        oldPassword,
+        newPassword,
+        confirmPassword
+      );
+
+      return res.json(ApiResponse(1000, { result }));
+    } catch (err) {
+      next(err);
+    }
+  }
 };
 module.exports = { UserController };
