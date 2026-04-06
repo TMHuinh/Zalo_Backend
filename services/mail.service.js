@@ -1,16 +1,22 @@
-const sgMail = require("@sendgrid/mail");
+const nodemailer = require("nodemailer");
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 const sendEmail = async ({ to, subject, html }) => {
-  const msg = {
+  const mailOptions = {
+    from: `"Chat App" <${process.env.EMAIL_USER}>`,
     to,
-    from: process.env.EMAIL_FROM, // email đã verify trên SendGrid
     subject,
     html,
   };
 
-  await sgMail.send(msg);
+  await transporter.sendMail(mailOptions);
 };
 
 module.exports = { sendEmail };

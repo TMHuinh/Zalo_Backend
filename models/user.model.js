@@ -7,11 +7,19 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailOtp: {
+      type: String,
+    },
+    emailOtpExpires: {
+      type: Date,
+    },
     phone: {
       type: String,
-      required: true,
-      unique: true,
-      index: true,
+      required: false,
     },
     email: {
       type: String,

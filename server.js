@@ -13,9 +13,9 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log("http://localhost:3000/api");
 });
-app.use(
-  cors({
-    origin: "http://localhost:5173", // frontend của bạn
-    credentials: true, // QUAN TRỌNG (cookie refreshToken)
-  })
-);
+// app.use(
+//   cors({
+//     origin: "http://localhost:5173", // frontend của bạn
+//     credentials: true, // QUAN TRỌNG (cookie refreshToken)
+//   })
+// );

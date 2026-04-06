@@ -2,94 +2,207 @@ const bcrypt = require("bcryptjs");
 const User = require("../../models/user.model");
 const { AppError } = require("../../utils/AppError");
 const mongoose = require("mongoose");
+const { sendEmail } = require("../../services/mail.service");
+
+const generateOtp = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+const generateRandomPassword = (length = 10) => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$";
+  let password = "";
+
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  return password;
+};
 
 const UserService = {
-  register: async (fullName, phone, password) => {
-    // 1. check user tồn tại
-    const existingUser = await User.findOne({ phone });
-
+  register: async (fullName, email, password) => {
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      throw AppError(400, "Số điện thoại đã tồn tại", 1400);
+      throw AppError(400, "Email đã tồn tại", 1400);
     }
 
-    // 2. hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // 3. tạo user
+    const otp = generateOtp();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+
     const newUser = await User.create({
       fullName,
-      phone,
+      email,
       passwordHash,
       status: "active",
       isOnline: false,
+      emailOtp: otp,
+      emailOtpExpires: otpExpires,
       createdAt: new Date(),
     });
-    // 4. return data (không trả password)
+
+    await sendEmail({
+      to: email,
+      subject: "Mã OTP xác thực email",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6">
+          <h2>Xác thực tài khoản</h2>
+          <p>Xin chào <b>${fullName}</b>,</p>
+          <p>Mã OTP của bạn là:</p>
+          <h1 style="color: #0068ff; letter-spacing: 4px;">${otp}</h1>
+          <p>Mã có hiệu lực trong <b>5 phút</b>.</p>
+        </div>
+      `,
+    });
     return {
       id: newUser._id,
       fullName: newUser.fullName,
-      phone: newUser.phone,
+      email: newUser.email,
+      message: "Đăng ký thành công, vui lòng kiểm tra email để lấy OTP",
     };
   },
-  // GET ALL USERS
-  getAllUsers: async () => {
-    const users = await User.find().select("-passwordHash"); // loại bỏ password
 
+  verifyEmailOtp: async (email, otp) => {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      throw AppError(404, "Không tìm thấy người dùng", 1404);
+    }
+
+    if (user.isVerified) {
+      throw AppError(400, "Email đã được xác thực", 1401);
+    }
+
+    if (!user.emailOtp || !user.emailOtpExpires) {
+      throw AppError(400, "OTP không tồn tại", 1402);
+    }
+
+    if (user.emailOtp !== otp) {
+      throw AppError(400, "OTP không đúng", 1403);
+    }
+
+    if (user.emailOtpExpires < new Date()) {
+      throw AppError(400, "OTP đã hết hạn", 1405);
+    }
+
+    user.isVerified = true;
+    user.emailOtp = null;
+    user.emailOtpExpires = null;
+
+    await user.save();
+
+    return { message: "Xác thực email thành công" };
+  },
+
+  resendEmailOtp: async (email) => {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      throw AppError(404, "Không tìm thấy người dùng", 1404);
+    }
+
+    if (user.isVerified) {
+      throw AppError(400, "Email đã được xác thực", 1401);
+    }
+
+    const otp = generateOtp();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+    user.emailOtp = otp;
+    user.emailOtpExpires = otpExpires;
+    await user.save();
+
+    await sendEmail({
+      to: email,
+      subject: "Mã OTP xác thực email",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6">
+          <h2>Gửi lại mã OTP</h2>
+          <p>Mã OTP mới của bạn là:</p>
+          <h1 style="color: #0068ff; letter-spacing: 4px;">${otp}</h1>
+          <p>Mã có hiệu lực trong <b>5 phút</b>.</p>
+        </div>
+      `,
+    });
+
+    return { message: "Đã gửi lại OTP về email" };
+  },
+
+  getAllUsers: async () => {
+    const users = await User.find().select("-passwordHash");
     return users;
   },
 
-  // GET USER BY ID
   getUserById: async (id) => {
-
-    // 1. kiểm tra id hợp lệ
     if (!mongoose.Types.ObjectId.isValid(id)) {
       throw AppError(400, "ID không hợp lệ", 1400);
     }
 
-    // 2. tìm user
     const user = await User.findById(id).select("-passwordHash -refreshToken");
-
 
     if (!user) {
       throw AppError(404, "Không tìm thấy user", 1404);
     }
 
-    // 3. return
     return user;
   },
+
   changePassword: async (userId, oldPassword, newPassword, confirmPassword) => {
-    // 1. kiểm tra ID hợp lệ
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       throw AppError(400, "ID không hợp lệ", 1400);
     }
 
-    // 2. lấy user từ DB
     const user = await User.findById(userId);
     if (!user) {
       throw AppError(404, "Không tìm thấy user", 1404);
     }
 
-    // 3. kiểm tra mật khẩu mới trùng confirm
     if (newPassword !== confirmPassword) {
       throw AppError(400, "Mật khẩu mới không trùng nhau", 1401);
     }
 
-    // 4. kiểm tra mật khẩu cũ
     const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
     if (!isMatch) {
       throw AppError(400, "Mật khẩu cũ không đúng", 1402);
     }
 
-    // 5. hash mật khẩu mới
     const salt = await bcrypt.genSalt(10);
     user.passwordHash = await bcrypt.hash(newPassword, salt);
 
-    // 6. lưu user
     await user.save();
 
-    // 7. return thông báo
     return { message: "Đổi mật khẩu thành công" };
+  },
+  forgetPassword: async (email) => {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      throw AppError(404, "Không tìm thấy người dùng", 1404);
+    }
+
+    const newPassword = generateRandomPassword(10);
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await user.save();
+
+    await sendEmail({
+      to: email,
+      subject: "Mật khẩu mới của bạn",
+      html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6">
+        <h2>Khôi phục mật khẩu</h2>
+        <p>Xin chào <b>${user.fullName}</b>,</p>
+        <p>Hệ thống đã tạo cho bạn một mật khẩu mới:</p>
+        <h1 style="color: #0068ff; letter-spacing: 2px;">${newPassword}</h1>
+        <p>Vui lòng đăng nhập và đổi lại mật khẩu ngay sau khi vào hệ thống.</p>
+      </div>
+    `,
+    });
+
+    return { message: "Mật khẩu mới đã được gửi về email" };
   },
 };
 

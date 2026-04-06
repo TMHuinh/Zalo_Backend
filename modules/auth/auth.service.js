@@ -44,11 +44,11 @@ const AuthService = {
     }
   },
 
-  login: async ({ phone, password }) => {
-    const user = await User.findOne({ phone });
+  login: async ({ email, password }) => {
+    const user = await User.findOne({ email });
 
     if (!user) {
-      throw AppError(404, "Số điện thoại không tồn tại", 1404);
+      throw AppError(404, "Email điện thoại không tồn tại", 1404);
     }
 
     if (user.status && user.status !== "active") {
