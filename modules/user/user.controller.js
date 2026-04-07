@@ -2,6 +2,7 @@
 
 const { ApiResponse } = require("../../utils/response");
 const { UserService } = require("./user.service");
+const upload = require("../../middlewares/upload.middleware");
 
 // exports.uploadAvatar = async (req, res, next) => {
 //   try {
@@ -116,4 +117,18 @@ const UserController = {
     }
   },
 };
+
+UserController.uploadAvatar = [
+  upload.single("avatar"),
+  async (req, res, next) => {
+    try {
+      const userId = req.userId;
+      const result = await UserService.updateAvatar(userId, req.file);
+      res.status(200).json({ result });
+    } catch (err) {
+      console.error("Upload avatar backend error:", err);
+      next(err);
+    }
+  },
+];
 module.exports = { UserController };

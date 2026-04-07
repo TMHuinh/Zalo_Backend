@@ -3,6 +3,7 @@ const User = require("../../models/user.model");
 const { AppError } = require("../../utils/AppError");
 const mongoose = require("mongoose");
 const { sendEmail } = require("../../services/mail.service");
+const { uploadImage } = require("../../services/cloudinary.service");
 
 const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -204,6 +205,25 @@ const UserService = {
 
     return { message: "Mật khẩu mới đã được gửi về email" };
   },
+};
+
+UserService.updateAvatar = async (userId, file) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw AppError(400, "ID không hợp lệ", 1400);
+  }
+
+  const user = await User.findById(userId);
+  if (!user) throw AppError(404, "Không tìm thấy user", 1404);
+
+  if (!file) throw AppError(400, "Chưa chọn file", 1400);
+
+  // Upload file lên Cloudinary từ buffer
+  const avatarUrl = await uploadImage(file.buffer, file.originalname); // sửa lại uploadImage nhận buffer
+
+  user.avatarUrl = avatarUrl;
+  await user.save();
+
+  return { message: "Cập nhật avatar thành công", avatarUrl };
 };
 
 module.exports = { UserService };
