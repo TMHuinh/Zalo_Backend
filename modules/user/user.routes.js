@@ -14,4 +14,6 @@ router.get("/", UserController.getAll);
 router.get("/:id", UserController.getById);
 router.patch("/change-password", authMiddleware, UserController.changePassword);
 
+router.post("/upload-avatar", authMiddleware, UserController.uploadAvatar);
+
 module.exports = router;
