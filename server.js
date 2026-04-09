@@ -18,6 +18,8 @@ const PORT = process.env.PORT;
 
 handleSocket(io);
 
+app.set("io", io);
+
 server.listen(PORT, async () => {
   await connectDB();
   console.log(`Server running on port ${PORT}`);
