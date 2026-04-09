@@ -175,6 +175,19 @@ const UserService = {
 
     return { message: "Đổi mật khẩu thành công" };
   },
+  updateStatus: async (userId) => {
+    return await User.findByIdAndUpdate(
+      userId,
+      [
+        {
+          $set: {
+            status: { $not: "$status" },
+          },
+        },
+      ],
+      { new: true },
+    );
+  },
   forgetPassword: async (email) => {
     const user = await User.findOne({ email });
 
