@@ -1,21 +1,24 @@
 require("dotenv").config();
 const http = require("http");
+const { Server } = require("socket.io");
 const app = require("./app");
 const connectDB = require("./config/database");
-const cors = require("cors");
+const { handleSocket } = require("./sockets");
 
 const server = http.createServer(app);
 
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  connectDB();
-  console.log(`Server running on port ${PORT}`);
-  console.log("http://localhost:3000/api");
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    credentials: true,
+  },
 });
-// app.use(
-//   cors({
-//     origin: "http://localhost:5173", // frontend của bạn
-//     credentials: true, // QUAN TRỌNG (cookie refreshToken)
-//   })
-// );
+
+const PORT = process.env.PORT;
+
+handleSocket(io);
+
+server.listen(PORT, async () => {
+  await connectDB();
+  console.log(`Server running on port ${PORT}`);
+});
