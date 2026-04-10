@@ -14,7 +14,7 @@ const AuthService = {
         phone: user.phone,
       },
       ACCESS_TOKEN_SECRET,
-      { expiresIn: "15m" },
+      { expiresIn: "7d" },
     );
   },
 
