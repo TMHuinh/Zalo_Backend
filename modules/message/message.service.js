@@ -27,23 +27,23 @@ const MessageService = {
     files = [],
   }) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      throw AppError(400, "conversationId không hợp lệ");
+      throw AppError(400, "conversationId không hợp lệ", 1400);
     }
 
     if (!mongoose.Types.ObjectId.isValid(senderId)) {
-      throw AppError(400, "senderId không hợp lệ");
+      throw AppError(400, "senderId không hợp lệ", 1400);
     }
 
     if (
       replyToMessageId &&
       !mongoose.Types.ObjectId.isValid(replyToMessageId)
     ) {
-      throw AppError(400, "replyToMessageId không hợp lệ");
+      throw AppError(400, "replyToMessageId không hợp lệ", 1400);
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      throw AppError(404, "Không tìm thấy cuộc trò chuyện");
+      throw AppError(404, "Không tìm thấy cuộc trò chuyện", 1404);
     }
 
     const isMember = conversation.members.some(
@@ -51,7 +51,7 @@ const MessageService = {
     );
 
     if (!isMember) {
-      throw AppError(403, "Bạn không thuộc cuộc trò chuyện này");
+      throw AppError(403, "Bạn không thuộc cuộc trò chuyện này", 1403);
     }
 
     if (replyToMessageId) {
@@ -63,7 +63,11 @@ const MessageService = {
       if (
         repliedMessage.conversationId.toString() !== conversationId.toString()
       ) {
-        throw AppError(400, "Tin nhắn reply không thuộc cuộc trò chuyện này");
+        throw AppError(
+          400,
+          "Tin nhắn reply không thuộc cuộc trò chuyện này",
+          1400,
+        );
       }
     }
 
@@ -89,7 +93,7 @@ const MessageService = {
     }
 
     if (!content?.trim() && attachments.length === 0) {
-      throw AppError(400, "Tin nhắn không được để trống");
+      throw AppError(400, "Tin nhắn không được để trống", 1400);
     }
 
     const messageType = normalizeMessageType(content, attachments);
@@ -122,12 +126,12 @@ const MessageService = {
     limit = 20,
   }) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      throw new AppError(400, "conversationId không hợp lệ");
+      throw new AppError(400, "conversationId không hợp lệ", 1400);
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      throw new AppError(404, "Không tìm thấy cuộc trò chuyện");
+      throw new AppError(404, "Không tìm thấy cuộc trò chuyện", 1404);
     }
 
     const skip = (page - 1) * limit;
