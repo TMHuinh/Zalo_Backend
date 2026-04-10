@@ -60,7 +60,9 @@ const AuthService = {
     if (!isMatch) {
       throw AppError(400, "Mật khẩu không chính xác", 1400);
     }
-
+    if (!user.isVerified) {
+      throw AppError(401, "Tài khoản chưa được xác thực", 1401);
+    }
     const accessToken = AuthService.generateToken(user);
     const refreshToken = AuthService.generateRefreshToken(user);
 
