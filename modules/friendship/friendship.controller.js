@@ -12,10 +12,7 @@ const FriendshipController = {
       const requesterId = req.userId;
       const { addresseeId } = req.body;
 
-      const result = await FriendshipService.sendRequest(
-        requesterId,
-        addresseeId
-      );
+      const result = await FriendshipService.sendRequest(requesterId, addresseeId);
 
       if (!result) throw new Error("Cannot send friend request");
 
@@ -33,6 +30,7 @@ const FriendshipController = {
           requesterName: requester.name,
           requesterAvatar: requester.avatar,
           friendshipId: result._id,
+          status: "pending",
         },
       });
 
@@ -55,10 +53,7 @@ const FriendshipController = {
       const requesterId = req.userId;
       const { phone } = req.body;
 
-      const result = await FriendshipService.sendRequestByPhone(
-        requesterId,
-        phone
-      );
+      const result = await FriendshipService.sendRequestByPhone(requesterId, phone);
 
       if (!result) throw new Error("User not found by phone");
 
@@ -75,6 +70,7 @@ const FriendshipController = {
           requesterId,
           requesterName: requester.name,
           friendshipId: result._id,
+          status: "pending",
         },
       });
 
@@ -97,10 +93,7 @@ const FriendshipController = {
       const userId = req.userId;
       const { friendshipId } = req.body;
 
-      const result = await FriendshipService.acceptRequest(
-        userId,
-        friendshipId
-      );
+      const result = await FriendshipService.acceptRequest(userId, friendshipId);
 
       if (!result) throw new Error("Cannot accept request");
 
@@ -112,17 +105,18 @@ const FriendshipController = {
 
       const noti = await NotificationService.create({
         userId: requesterId,
-        type: "friend_accept",
+        type: "friend_request",
         title: "Kết bạn thành công",
         content: `${user.name} đã chấp nhận lời mời kết bạn`,
         data: {
           userId,
+          friendshipId,
+          status: "accepted",
         },
       });
 
       await emitNotification(io, requesterId, noti);
 
-      // realtime conversation
       io.to(requesterId.toString()).emit(
         "new_conversation",
         result.conversation
@@ -145,10 +139,7 @@ const FriendshipController = {
       const userId = req.userId;
       const { friendshipId } = req.body;
 
-      const result = await FriendshipService.rejectRequest(
-        userId,
-        friendshipId
-      );
+      const result = await FriendshipService.rejectRequest(userId, friendshipId);
 
       if (!result) throw new Error("Cannot reject request");
 
@@ -156,11 +147,13 @@ const FriendshipController = {
 
       const noti = await NotificationService.create({
         userId: result.requesterId,
-        type: "friend_reject",
-        title: "Lời mời bị từ chối",
+        type: "friend_request",
+        title: "Lời mời kết bạn",
         content: "Lời mời kết bạn đã bị từ chối",
         data: {
           userId,
+          friendshipId,
+          status: "rejected",
         },
       });
 
@@ -183,10 +176,7 @@ const FriendshipController = {
       const userId = req.userId;
       const { friendshipId } = req.body;
 
-      const result = await FriendshipService.cancelRequest(
-        userId,
-        friendshipId
-      );
+      const result = await FriendshipService.cancelRequest(userId, friendshipId);
 
       if (!result) throw new Error("Cannot cancel request");
 
@@ -207,10 +197,7 @@ const FriendshipController = {
       const userId = req.userId;
       const { friendId } = req.params;
 
-      const result = await FriendshipService.unfriend(
-        userId,
-        friendId
-      );
+      const result = await FriendshipService.unfriend(userId, friendId);
 
       if (!result) throw new Error("Cannot unfriend");
 
@@ -218,11 +205,12 @@ const FriendshipController = {
 
       const noti = await NotificationService.create({
         userId: friendId,
-        type: "friend_remove",
+        type: "system",
         title: "Huỷ kết bạn",
         content: "Bạn và người này không còn là bạn bè",
         data: {
           userId,
+          status: "unfriend",
         },
       });
 
