@@ -1,5 +1,4 @@
-const AppError = (status, message, code) => ({
-  status,
+const AppError = (message, code) => ({
   message,
   code,
 });

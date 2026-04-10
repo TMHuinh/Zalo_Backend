@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { AppError } = require("../utils/AppError");
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 
@@ -7,14 +8,14 @@ const authMiddleware = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      return res.status(401).json({ message: "Thiếu token" });
+      return res.status(401).json(AppError("Thiếu token", 1401));
     }
 
     // format: Bearer <token>
     const token = authHeader.split(" ")[1];
 
     if (!token) {
-      return res.status(401).json({ message: "Token không hợp lệ" });
+      return res.status(401).json(AppError("Token không hợp lệ", 1402));
     }
 
     // verify token với ACCESS_TOKEN_SECRET
@@ -26,7 +27,7 @@ const authMiddleware = (req, res, next) => {
     next();
   } catch (err) {
     console.error("JWT Error:", err); // debug token
-    return res.status(401).json({ message: "Token hết hạn hoặc không hợp lệ" });
+    return res.status(401).json(AppError("Token hết hạn", 1405));
   }
 };
 
