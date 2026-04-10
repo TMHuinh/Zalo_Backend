@@ -183,7 +183,7 @@ const UserService = {
       [
         {
           $set: {
-            status: status,
+            isOnline: status,
           },
         },
       ],
