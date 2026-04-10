@@ -15,7 +15,7 @@ const handleSocket = (io) => {
         socket.join(userId.toString());
 
         // cập nhật online
-        await UserService.updateStatus(userId);
+        await UserService.updateStatus(userId, "online");
 
         // join các group của user
         const groups =
@@ -48,7 +48,7 @@ const handleSocket = (io) => {
     socket.on("disconnect", async () => {
       try {
         if (socket.userId) {
-          await UserService.updateStatus(socket.userId);
+          await UserService.updateStatus(socket.userId, "offline");
         }
         console.log("User disconnected:", socket.id);
       } catch (error) {

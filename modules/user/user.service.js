@@ -175,13 +175,13 @@ const UserService = {
 
     return { message: "Đổi mật khẩu thành công" };
   },
-  updateStatus: async (userId) => {
+  updateStatus: async (userId, status) => {
     return await User.findByIdAndUpdate(
       userId,
       [
         {
           $set: {
-            status: { $not: "$status" },
+            status: status,
           },
         },
       ],
