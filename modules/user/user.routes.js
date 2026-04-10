@@ -11,6 +11,7 @@ router.post("/forgot-password", UserController.forgetPassword);
 router.post("/resend-otp", UserController.resendEmailOtp);
 // GET ALL USERS
 router.get("/", UserController.getAll);
+router.get("/search", UserController.searchByPhone);
 router.get("/:id", UserController.getById);
 router.patch("/change-password", authMiddleware, UserController.changePassword);
 
