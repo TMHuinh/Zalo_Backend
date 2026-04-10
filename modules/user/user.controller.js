@@ -116,6 +116,20 @@ const UserController = {
       next(err);
     }
   },
+  searchByPhone: async (req, res, next) => {
+    try {
+      const { phone } = req.query;
+
+      const user = await UserService.searchByPhone(phone);
+
+      res.json({
+        message: "Tìm thấy user",
+        data: user,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 UserController.uploadAvatar = [

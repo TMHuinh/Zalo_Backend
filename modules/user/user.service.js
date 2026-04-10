@@ -218,6 +218,21 @@ const UserService = {
 
     return { message: "Mật khẩu mới đã được gửi về email" };
   },
+  searchByPhone: async (phone) => {
+    if (!phone) {
+      throw AppError(400, "Số điện thoại không được để trống", 1400);
+    }
+
+    const user = await User.findOne({ phone }).select(
+      "-passwordHash -refreshToken -emailOtp -emailOtpExpires",
+    );
+
+    if (!user) {
+      throw AppError(404, "Không tìm thấy người dùng", 1404);
+    }
+
+    return user;
+  },
 };
 
 UserService.updateAvatar = async (userId, file) => {
