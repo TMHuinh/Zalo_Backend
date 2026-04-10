@@ -15,8 +15,8 @@ const upload = require("../../middlewares/upload.middleware");
 const UserController = {
   register: async (req, res, next) => {
     try {
-      const { fullName, email, password } = req.body;
-      const result = await UserService.register(fullName, email, password);
+      const { fullName, email, password,phone } = req.body;
+      const result = await UserService.register(fullName, email, password,phone);
 
       res.status(201).json({
         message: "Register success",

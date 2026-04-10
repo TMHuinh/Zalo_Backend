@@ -20,7 +20,7 @@ const generateRandomPassword = (length = 10) => {
 };
 
 const UserService = {
-  register: async (fullName, email, password) => {
+  register: async (fullName, email, password, phone) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       throw AppError(400, "Email đã tồn tại", 1400);
@@ -36,6 +36,7 @@ const UserService = {
       fullName,
       email,
       passwordHash,
+      phone,
       status: "active",
       isOnline: false,
       emailOtp: otp,
@@ -60,6 +61,7 @@ const UserService = {
       id: newUser._id,
       fullName: newUser.fullName,
       email: newUser.email,
+      phone: newUser.phone,
       message: "Đăng ký thành công, vui lòng kiểm tra email để lấy OTP",
     };
   },
