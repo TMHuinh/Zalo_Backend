@@ -32,6 +32,7 @@ const handleSocket = (io) => {
     });
 
     socket.on("send_message", ({ userId, toUserId, message }) => {
+      console.log(`User ${userId} sends message to ${toUserId}: ${message}`);
       io.to(toUserId.toString()).emit("receive_message", {
         userId,
         message,

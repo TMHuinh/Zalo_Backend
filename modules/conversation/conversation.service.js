@@ -12,5 +12,17 @@ const ConversationService = {
 
     return conversations;
   },
+
+  getConversationByUserId: async (userId) => {
+    const conversations = await Conversation.find({
+      isDeleted: false,
+      "members.userId": userId,
+    })
+      .sort({ lastMessageAt: -1 })
+      .populate("lastMessageId")
+      .populate("members.userId", "fullName avatarUrl");
+
+    return conversations;
+  },
 };
 module.exports = { ConversationService };
