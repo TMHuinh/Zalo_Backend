@@ -8,6 +8,10 @@ const { UserController } = require("./user.controller");
 router.post("/register", UserController.register);
 router.post("/verify-email", UserController.verifyEmailOtp);
 router.post("/forgot-password", UserController.forgetPassword);
+router.post(
+  "/verify-forgot-password-otp",
+  UserController.verifyForgotPasswordOtp,
+);
 router.post("/resend-otp", UserController.resendEmailOtp);
 // GET ALL USERS
 router.get("/", UserController.getAll);

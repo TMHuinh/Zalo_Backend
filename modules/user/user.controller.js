@@ -15,8 +15,13 @@ const upload = require("../../middlewares/upload.middleware");
 const UserController = {
   register: async (req, res, next) => {
     try {
-      const { fullName, email, password,phone } = req.body;
-      const result = await UserService.register(fullName, email, password,phone);
+      const { fullName, email, password, phone } = req.body;
+      const result = await UserService.register(
+        fullName,
+        email,
+        password,
+        phone,
+      );
 
       res.status(201).json({
         message: "Register success",
@@ -30,16 +35,21 @@ const UserController = {
     try {
       const { email } = req.body;
       const result = await UserService.forgetPassword(email);
-
-      res.status(200).json({
-        message: "Forgot password success",
-        result,
-      });
+      return res.status(200).json(result);
     } catch (error) {
       next(error);
     }
   },
 
+  verifyForgotPasswordOtp: async (req, res, next) => {
+    try {
+      const { email, otp } = req.body;
+      const result = await UserService.verifyForgotPasswordOtp(email, otp);
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
   verifyEmailOtp: async (req, res, next) => {
     try {
       const { email, otp } = req.body;
@@ -87,11 +97,7 @@ const UserController = {
 
       const user = await UserService.getUserById(id);
 
-      return res.json(
-        ApiResponse(1000, {
-          result: user,
-        }),
-      );
+      return res.json(ApiResponse(1000, user));
     } catch (err) {
       next(err);
     }

@@ -177,18 +177,8 @@ const UserService = {
 
     return { message: "Đổi mật khẩu thành công" };
   },
-  updateStatus: async (userId, status) => {
-    return await User.findByIdAndUpdate(
-      userId,
-      [
-        {
-          $set: {
-            isOnline: status,
-          },
-        },
-      ],
-      { new: true },
-    );
+  updateStatus: (userId, status) => {
+    return User.findByIdAndUpdate(userId, { isOnline: status }, { new: true });
   },
   forgetPassword: async (email) => {
     const user = await User.findOne({ email });
@@ -197,10 +187,54 @@ const UserService = {
       throw AppError(404, "Không tìm thấy người dùng", 1404);
     }
 
-    const newPassword = generateRandomPassword(10);
+    const otp = generateOtp();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
 
+    user.emailOtp = otp;
+    user.emailOtpExpires = otpExpires;
+    await user.save();
+
+    await sendEmail({
+      to: email,
+      subject: "Mã OTP khôi phục mật khẩu",
+      html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6">
+        <h2>Khôi phục mật khẩu</h2>
+        <p>Xin chào <b>${user.fullName}</b>,</p>
+        <p>Mã OTP để khôi phục mật khẩu của bạn là:</p>
+        <h1 style="color: #0068ff; letter-spacing: 4px;">${otp}</h1>
+        <p>Mã có hiệu lực trong <b>5 phút</b>.</p>
+      </div>
+    `,
+    });
+
+    return { message: "OTP khôi phục mật khẩu đã được gửi về email" };
+  },
+  verifyForgotPasswordOtp: async (email, otp) => {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      throw AppError(404, "Không tìm thấy người dùng", 1404);
+    }
+
+    if (!user.emailOtp || !user.emailOtpExpires) {
+      throw AppError(400, "OTP không tồn tại", 1402);
+    }
+
+    if (user.emailOtp !== otp) {
+      throw AppError(400, "OTP không đúng", 1403);
+    }
+
+    if (user.emailOtpExpires < new Date()) {
+      throw AppError(400, "OTP đã hết hạn", 1405);
+    }
+
+    const newPassword = generateRandomPassword(10);
     const salt = await bcrypt.genSalt(10);
+
     user.passwordHash = await bcrypt.hash(newPassword, salt);
+    user.emailOtp = null;
+    user.emailOtpExpires = null;
 
     await user.save();
 
@@ -209,9 +243,9 @@ const UserService = {
       subject: "Mật khẩu mới của bạn",
       html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6">
-        <h2>Khôi phục mật khẩu</h2>
+        <h2>Khôi phục mật khẩu thành công</h2>
         <p>Xin chào <b>${user.fullName}</b>,</p>
-        <p>Hệ thống đã tạo cho bạn một mật khẩu mới:</p>
+        <p>Đây là mật khẩu mới của bạn:</p>
         <h1 style="color: #0068ff; letter-spacing: 2px;">${newPassword}</h1>
         <p>Vui lòng đăng nhập và đổi lại mật khẩu ngay sau khi vào hệ thống.</p>
       </div>
