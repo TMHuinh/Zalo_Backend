@@ -116,9 +116,10 @@ const FriendshipController = {
         userId: requesterId,
         type: "friend_request",
         title: "Kết bạn thành công",
-        content: `${user.name} đã chấp nhận lời mời kết bạn`,
+        content: `${user.fullName} đã chấp nhận lời mời kết bạn`,
         data: {
           userId,
+          requesterName: user.fullName,
           friendshipId,
           status: "accepted",
         },
@@ -156,7 +157,7 @@ const FriendshipController = {
       if (!result) throw new Error("Cannot reject request");
 
       const io = req.app.get("io");
-
+      const user = await UserService.getUserById(userId);
       const noti = await NotificationService.create({
         userId: result.requesterId,
         type: "friend_request",
@@ -164,7 +165,7 @@ const FriendshipController = {
         content: "Lời mời kết bạn đã bị từ chối",
         data: {
           userId,
-          friendshipId,
+          requesterName: user.fullName,
           status: "rejected",
         },
       });

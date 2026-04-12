@@ -25,9 +25,12 @@ const FriendshipService = {
     });
 
     if (existing) {
-      if (existing.status === "accepted") throw AppError(400, "Đã là bạn bè", 1402);
-      if (existing.status === "pending") throw AppError(400, "Đã gửi lời mời trước đó", 1403);
-      if (existing.status === "blocked") throw AppError(403, "Không thể gửi lời mời", 1404);
+      if (existing.status === "accepted")
+        throw AppError(400, "Đã là bạn bè", 1402);
+      if (existing.status === "pending")
+        throw AppError(400, "Đã gửi lời mời trước đó", 1403);
+      if (existing.status === "blocked")
+        throw AppError(403, "Không thể gửi lời mời", 1404);
       if (existing.status === "rejected") {
         existing.status = "pending";
         existing.requesterId = requesterId;
@@ -50,10 +53,16 @@ const FriendshipService = {
   // ===============================
   sendRequestByPhone: async (requesterId, phone) => {
     const user = await User.findOne({ phone });
-    if (!user) throw AppError(404, "Không tìm thấy người dùng với số điện thoại này", 1404);
+    if (!user)
+      throw AppError(
+        404,
+        "Không tìm thấy người dùng với số điện thoại này",
+        1404,
+      );
 
     // không thể tự kết bạn
-    if (user._id.toString() === requesterId) throw AppError(400, "Không thể kết bạn với chính mình", 1401);
+    if (user._id.toString() === requesterId)
+      throw AppError(400, "Không thể kết bạn với chính mình", 1401);
 
     return await FriendshipService.sendRequest(requesterId, user._id);
   },
@@ -62,13 +71,16 @@ const FriendshipService = {
   // 📌 ACCEPT REQUEST
   // ===============================
   acceptRequest: async (userId, friendshipId) => {
-    if (!mongoose.Types.ObjectId.isValid(friendshipId)) throw AppError(400, "ID không hợp lệ", 1400);
+    if (!mongoose.Types.ObjectId.isValid(friendshipId))
+      throw AppError(400, "ID không hợp lệ", 1400);
 
     const friendship = await Friendship.findById(friendshipId);
     if (!friendship) throw AppError(404, "Không tìm thấy", 1404);
 
-    if (friendship.addresseeId.toString() !== userId) throw AppError(403, "Không có quyền", 1403);
-    if (friendship.status !== "pending") throw AppError(400, "Yêu cầu không hợp lệ", 1405);
+    if (friendship.addresseeId.toString() !== userId)
+      throw AppError(403, "Không có quyền", 1403);
+    if (friendship.status !== "pending")
+      throw AppError(400, "Yêu cầu không hợp lệ", 1405);
 
     friendship.status = "accepted";
     friendship.actionBy = userId;
@@ -76,7 +88,9 @@ const FriendshipService = {
 
     let conversation = await Conversation.findOne({
       type: "direct",
-      "members.userId": { $all: [friendship.requesterId, friendship.addresseeId] },
+      "members.userId": {
+        $all: [friendship.requesterId, friendship.addresseeId],
+      },
     });
 
     if (!conversation) {
@@ -96,12 +110,15 @@ const FriendshipService = {
   // 📌 REJECT REQUEST
   // ===============================
   rejectRequest: async (userId, friendshipId) => {
-    if (!mongoose.Types.ObjectId.isValid(friendshipId)) throw AppError(400, "ID không hợp lệ", 1400);
+    if (!mongoose.Types.ObjectId.isValid(friendshipId))
+      throw AppError(400, "ID không hợp lệ", 1400);
 
     const friendship = await Friendship.findById(friendshipId);
     if (!friendship) throw AppError(404, "Không tìm thấy", 1404);
-    if (friendship.addresseeId.toString() !== userId) throw AppError(403, "Không có quyền", 1403);
-    if (friendship.status !== "pending") throw AppError(400, "Yêu cầu không hợp lệ", 1405);
+    if (friendship.addresseeId.toString() !== userId)
+      throw AppError(403, "Không có quyền", 1403);
+    if (friendship.status !== "pending")
+      throw AppError(400, "Yêu cầu không hợp lệ", 1405);
 
     friendship.status = "rejected";
     friendship.actionBy = userId;
@@ -116,8 +133,10 @@ const FriendshipService = {
   cancelRequest: async (userId, friendshipId) => {
     const friendship = await Friendship.findById(friendshipId);
     if (!friendship) throw AppError(404, "Không tìm thấy", 1404);
-    if (friendship.requesterId.toString() !== userId) throw AppError(403, "Không có quyền", 1403);
-    if (friendship.status !== "pending") throw AppError(400, "Không thể huỷ", 1405);
+    if (friendship.requesterId.toString() !== userId)
+      throw AppError(403, "Không có quyền", 1403);
+    if (friendship.status !== "pending")
+      throw AppError(400, "Không thể huỷ", 1405);
 
     await friendship.deleteOne();
     return { message: "Đã huỷ lời mời" };
@@ -152,13 +171,51 @@ const FriendshipService = {
       status: "accepted",
       $or: [{ requesterId: userId }, { addresseeId: userId }],
     })
-      .populate("requesterId", "fullName avatarUrl isOnline")
-      .populate("addresseeId", "fullName avatarUrl isOnline");
+      .populate(
+        "requesterId",
+        "fullName avatarUrl isOnline firstChar fullNameNormalized",
+      )
+      .populate(
+        "addresseeId",
+        "fullName avatarUrl isOnline firstChar fullNameNormalized",
+      );
 
-    return friendships.map(f => {
-      const friend = f.requesterId._id.toString() === userId ? f.addresseeId : f.requesterId;
-      return { _id: f._id, friend };
+    const friends = friendships.map((f) => {
+      const friend =
+        f.requesterId._id.toString() === userId.toString()
+          ? f.addresseeId
+          : f.requesterId;
+
+      return {
+        friendshipId: f._id,
+        ...friend.toObject(),
+      };
     });
+
+    friends.sort((a, b) => {
+      const charCompare = (a.firstChar || "#").localeCompare(
+        b.firstChar || "#",
+      );
+      if (charCompare !== 0) return charCompare;
+
+      return (a.fullNameNormalized || "").localeCompare(
+        b.fullNameNormalized || "",
+      );
+    });
+
+    const grouped = {};
+
+    for (const friend of friends) {
+      const key = friend.firstChar || "#";
+
+      if (!grouped[key]) {
+        grouped[key] = [];
+      }
+
+      grouped[key].push(friend);
+    }
+
+    return grouped;
   },
 
   // ===============================
@@ -183,7 +240,10 @@ const FriendshipService = {
     });
 
     if (!friendship) return { status: "none" };
-    return { status: friendship.status, isRequester: friendship.requesterId.toString() === userId };
+    return {
+      status: friendship.status,
+      isRequester: friendship.requesterId.toString() === userId,
+    };
   },
 };
 
