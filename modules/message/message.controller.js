@@ -41,6 +41,12 @@ const MessageController = {
     try {
       const { messageId } = req.body;
       const message = await MessageService.deleteMessage(messageId);
+      const conversationId = message.conversationId?.toString();
+      const io = req.app.get("io");
+      console.log("IO:", req.app.get("io"));
+      if (conversationId) {
+        io.to(conversationId).emit("message_updated", message);
+      }
       return res.status(200).json(ApiResponse(1000, message));
     } catch (error) {
       next(error);
@@ -50,6 +56,13 @@ const MessageController = {
     try {
       const { messageId } = req.body;
       const message = await MessageService.revokeMessage(messageId);
+      const conversationId = message.conversationId?.toString();
+      console.log(conversationId);
+      const io = req.app.get("io");
+
+      if (conversationId) {
+        io.to(conversationId).emit("message_updated", message);
+      }
       return res.status(200).json(ApiResponse(1000, message));
     } catch (error) {
       next(error);

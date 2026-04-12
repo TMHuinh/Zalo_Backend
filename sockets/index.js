@@ -46,6 +46,7 @@ const handleSocket = (io) => {
         message,
       });
     });
+
     socket.on("disconnect", async () => {
       try {
         if (socket.userId) {
@@ -55,6 +56,17 @@ const handleSocket = (io) => {
       } catch (error) {
         console.error("Disconnect error:", error);
       }
+    });
+    socket.on("message_updated", ({ conversationId, message }) => {
+      io.to(conversationId.toString()).emit("message_updated", message);
+    }); 
+    socket.on("join_conversation", (conversationId) => {
+      socket.join(conversationId.toString());
+      console.log("JOIN ROOM:", conversationId);
+    });
+
+    socket.on("leave_conversation", (conversationId) => {
+      socket.leave(conversationId.toString());
     });
   });
 };
