@@ -12,7 +12,10 @@ const FriendshipController = {
       const requesterId = req.userId;
       const { addresseeId } = req.body;
 
-      const result = await FriendshipService.sendRequest(requesterId, addresseeId);
+      const result = await FriendshipService.sendRequest(
+        requesterId,
+        addresseeId,
+      );
 
       if (!result) throw new Error("Cannot send friend request");
 
@@ -24,10 +27,10 @@ const FriendshipController = {
         userId: addresseeId,
         type: "friend_request",
         title: "Lời mời kết bạn",
-        content: `${requester.name} đã gửi lời mời kết bạn`,
+        content: `${requester.fullName} đã gửi lời mời kết bạn`,
         data: {
           requesterId,
-          requesterName: requester.name,
+          requesterName: requester.fullName,
           requesterAvatar: requester.avatar,
           friendshipId: result._id,
           status: "pending",
@@ -53,7 +56,10 @@ const FriendshipController = {
       const requesterId = req.userId;
       const { phone } = req.body;
 
-      const result = await FriendshipService.sendRequestByPhone(requesterId, phone);
+      const result = await FriendshipService.sendRequestByPhone(
+        requesterId,
+        phone,
+      );
 
       if (!result) throw new Error("User not found by phone");
 
@@ -93,7 +99,10 @@ const FriendshipController = {
       const userId = req.userId;
       const { friendshipId } = req.body;
 
-      const result = await FriendshipService.acceptRequest(userId, friendshipId);
+      const result = await FriendshipService.acceptRequest(
+        userId,
+        friendshipId,
+      );
 
       if (!result) throw new Error("Cannot accept request");
 
@@ -119,7 +128,7 @@ const FriendshipController = {
 
       io.to(requesterId.toString()).emit(
         "new_conversation",
-        result.conversation
+        result.conversation,
       );
 
       res.json({
@@ -139,7 +148,10 @@ const FriendshipController = {
       const userId = req.userId;
       const { friendshipId } = req.body;
 
-      const result = await FriendshipService.rejectRequest(userId, friendshipId);
+      const result = await FriendshipService.rejectRequest(
+        userId,
+        friendshipId,
+      );
 
       if (!result) throw new Error("Cannot reject request");
 
@@ -176,7 +188,10 @@ const FriendshipController = {
       const userId = req.userId;
       const { friendshipId } = req.body;
 
-      const result = await FriendshipService.cancelRequest(userId, friendshipId);
+      const result = await FriendshipService.cancelRequest(
+        userId,
+        friendshipId,
+      );
 
       if (!result) throw new Error("Cannot cancel request");
 
@@ -259,7 +274,7 @@ const FriendshipController = {
 
       const result = await FriendshipService.getRelationshipStatus(
         userId,
-        otherUserId
+        otherUserId,
       );
 
       res.json(result);
