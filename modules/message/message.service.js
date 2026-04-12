@@ -116,6 +116,7 @@ const MessageService = {
       .populate("senderId", "fullName avatarUrl")
       .populate("replyToMessageId");
   },
+
   getMessagesByConversation: async ({
     conversationId,
     page = 1,
@@ -151,6 +152,23 @@ const MessageService = {
         totalPages: Math.ceil(total / limit),
       },
     };
+  },
+  deleteMessage: async (messageId) => {
+    const message = await Message.findByIdAndUpdate(
+      messageId,
+      { $set: { isDeleted: true } },
+      { new: true },
+    );
+
+    return message;
+  },
+  revokeMessage: async (messageId) => {
+    const message = await Message.findByIdAndUpdate(
+      messageId,
+      { $set: { isRecalled: true } },
+      { new: true },
+    );
+    return message;
   },
 };
 

@@ -37,6 +37,24 @@ const MessageController = {
       next(error);
     }
   },
+  deleteMessage: async (req, res, next) => {
+    try {
+      const { messageId } = req.body;
+      const message = await MessageService.deleteMessage(messageId);
+      return res.status(200).json(ApiResponse(1000, message));
+    } catch (error) {
+      next(error);
+    }
+  },
+  revokeMessage: async (req, res, next) => {
+    try {
+      const { messageId } = req.body;
+      const message = await MessageService.revokeMessage(messageId);
+      return res.status(200).json(ApiResponse(1000, message));
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = { MessageController };
