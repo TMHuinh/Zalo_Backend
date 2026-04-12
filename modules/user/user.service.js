@@ -269,6 +269,78 @@ const UserService = {
 
     return user;
   },
+  updateUser: async (userId, data) => {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw AppError(400, "ID không hợp lệ", 1400);
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      throw AppError(404, "Không tìm thấy user", 1404);
+    }
+
+    const { fullName, gender, bio, phone, dateOfBirth } = data;
+
+    // validate fullName
+    if (fullName !== undefined) {
+      if (!fullName.trim()) {
+        throw AppError(400, "Họ tên không được để trống", 1401);
+      }
+      user.fullName = fullName.trim();
+    }
+
+    // validate gender
+    if (gender !== undefined) {
+      const validGender = ["male", "female", "other"];
+      if (!validGender.includes(gender)) {
+        throw AppError(400, "Giới tính không hợp lệ", 1402);
+      }
+      user.gender = gender;
+    }
+
+    // bio
+    if (bio !== undefined) {
+      if (bio.length > 300) {
+        throw AppError(400, "Bio tối đa 300 ký tự", 1403);
+      }
+      user.bio = bio;
+    }
+
+    // phone
+    if (phone !== undefined) {
+      user.phone = phone;
+    }
+
+    // dateOfBirth
+    if (dateOfBirth !== undefined) {
+      if (dateOfBirth === null || dateOfBirth === "") {
+        user.dateOfBirth = null;
+      } else {
+        const date = new Date(dateOfBirth);
+        if (isNaN(date.getTime())) {
+          throw AppError(400, "Ngày sinh không hợp lệ", 1404);
+        }
+        user.dateOfBirth = date;
+      }
+    }
+
+    await user.save();
+
+    return {
+      message: "Cập nhật thông tin thành công",
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        gender: user.gender,
+        bio: user.bio,
+        phone: user.phone,
+        dateOfBirth: user.dateOfBirth,
+        avatarUrl: user.avatarUrl,
+        isOnline: user.isOnline,
+        updatedAt: user.updatedAt,
+      },
+    };
+  },
 };
 
 UserService.updateAvatar = async (userId, file) => {

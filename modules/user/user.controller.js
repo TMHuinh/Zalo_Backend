@@ -136,6 +136,27 @@ const UserController = {
       next(err);
     }
   },
+  updateUser: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { fullName, gender, bio, phone, dateOfBirth } = req.body;
+
+      const result = await UserService.updateUser(id, {
+        fullName,
+        gender,
+        bio,
+        phone,
+        dateOfBirth,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 UserController.uploadAvatar = [
