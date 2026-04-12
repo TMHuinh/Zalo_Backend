@@ -4,6 +4,7 @@ const { AppError } = require("../../utils/AppError");
 const mongoose = require("mongoose");
 const { sendEmail } = require("../../services/mail.service");
 const { uploadImage } = require("../../services/cloudinary.service");
+const Friendship = require("../../models/friendship.model");
 
 const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -254,12 +255,14 @@ const UserService = {
 
     return { message: "Mật khẩu mới đã được gửi về email" };
   },
-  searchByPhone: async (phone) => {
-    if (!phone) {
+  searchByPhone: async (phone, requesterId) => {
+    if (!phone || !phone.trim()) {
       throw AppError(400, "Số điện thoại không được để trống", 1400);
     }
 
-    const user = await User.findOne({ phone }).select(
+    const cleanPhone = phone.trim();
+
+    const user = await User.findOne({ phone: cleanPhone }).select(
       "-passwordHash -refreshToken -emailOtp -emailOtpExpires",
     );
 
@@ -267,7 +270,36 @@ const UserService = {
       throw AppError(404, "Không tìm thấy người dùng", 1404);
     }
 
-    return user;
+    // self check (SAFE)
+    const isMe = requesterId && user._id.toString() === requesterId.toString();
+
+    if (isMe) {
+      return {
+        user,
+        relationship: "self",
+      };
+    }
+
+    // check friendship
+    let relationship = "none";
+
+    if (requesterId) {
+      const friendship = await Friendship.findOne({
+        $or: [
+          { requesterId, addresseeId: user._id },
+          { requesterId: user._id, addresseeId: requesterId },
+        ],
+      });
+
+      if (friendship) {
+        relationship = friendship.status;
+      }
+    }
+
+    return {
+      user,
+      relationship,
+    };
   },
   updateUser: async (userId, data) => {
     if (!mongoose.Types.ObjectId.isValid(userId)) {

@@ -124,13 +124,14 @@ const UserController = {
   },
   searchByPhone: async (req, res, next) => {
     try {
-      const { phone } = req.query;
+      const phone = req.query.phone;
+      const requesterId = req.userId;
 
-      const user = await UserService.searchByPhone(phone);
+      const result = await UserService.searchByPhone(phone, requesterId);
 
-      res.json({
+      return res.status(200).json({
         message: "Tìm thấy user",
-        data: user,
+        data: result,
       });
     } catch (err) {
       next(err);
