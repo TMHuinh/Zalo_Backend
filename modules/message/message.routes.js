@@ -20,4 +20,7 @@ router.get(
   MessageController.getMessagesByConversation,
 );
 
+router.delete("/delete", authMiddleware, MessageController.deleteMessage);
+router.delete("/revoke", authMiddleware, MessageController.revokeMessage);
+
 module.exports = router;
