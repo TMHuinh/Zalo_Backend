@@ -13,6 +13,7 @@ router.post(
   UserController.verifyForgotPasswordOtp,
 );
 router.post("/resend-otp", UserController.resendEmailOtp);
+router.put("/:id", authMiddleware, UserController.updateUser);
 // GET ALL USERS
 router.get("/", UserController.getAll);
 router.get("/search", UserController.searchByPhone);
