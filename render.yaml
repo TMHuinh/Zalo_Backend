@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: express-render-cicd
+    name: Zalo_Backend
     runtime: node
     plan: free
     buildCommand: npm install
