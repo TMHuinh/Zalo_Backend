@@ -19,7 +19,7 @@ handleSocket(io);
 
 app.set("io", io);
 
-server.listen(PORT, async () => {
+server.listen(PORT, "0.0.0.0", async () => {
   await connectDB();
   console.log(`Server running on port ${PORT}`);
 });
