@@ -1,0 +1,18 @@
+# .github/workflows/render-deploy.yml
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: render-deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: curl -X POST "https://api.render.com/deploy/srv-d7e83eosfn5c738ovhpg?key=E2Woah-Xcn4"
