@@ -31,11 +31,12 @@ const handleSocket = (io) => {
       }
     });
 
-    socket.on("send_message", ({ userId, toUserId, message }) => {
+    socket.on("send_message", ({ userId, toUserId, message, type }) => {
       console.log(`User ${userId} sends message to ${toUserId}: ${message}`);
       io.to(toUserId.toString()).emit("receive_message", {
         userId,
         message,
+        type,
       });
     });
 
@@ -57,9 +58,21 @@ const handleSocket = (io) => {
         console.error("Disconnect error:", error);
       }
     });
-    socket.on("message_updated", ({ conversationId, message }) => {
-      io.to(conversationId.toString()).emit("message_updated", message);
-    }); 
+    
+    socket.on("recall_message", ({ toUserId, messageId }) => {
+      console.log(`User recalls message: ${messageId}`);
+      io.to(toUserId.toString()).emit("message_recalled", {
+        messageId,
+      });
+    });
+
+    socket.on("delete_message", ({ toUserId, messageId }) => {
+      console.log(`User deletes message: ${messageId}`);
+      io.to(toUserId.toString()).emit("message_deleted", {
+        messageId,
+      });
+    });
+
     socket.on("join_conversation", (conversationId) => {
       socket.join(conversationId.toString());
       console.log("JOIN ROOM:", conversationId);
