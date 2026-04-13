@@ -5,10 +5,14 @@ const cors = require("cors");
 // ✅ parse JSON trước
 app.use(express.json());
 
+const allowedOrigins = [
+  "https://zalo-frontend.vercel.app",
+  "http://localhost:5173",
+];
 // ✅ CORS
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
