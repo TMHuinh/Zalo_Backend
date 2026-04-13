@@ -15,7 +15,9 @@ app.use(
 
 // ✅ routes
 app.use("/api", require("./routes"));
-
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 // ✅ error middleware
 app.use(require("./middlewares/error.middleware"));
 
