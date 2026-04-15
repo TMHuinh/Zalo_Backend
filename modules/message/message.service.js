@@ -5,17 +5,14 @@ const { AppError } = require("../../utils/AppError");
 const { uploadAttachment } = require("../../services/cloudinary.service");
 
 const normalizeMessageType = (content, attachments) => {
-  if (attachments.length > 0) {
+  if (attachments && attachments.length > 0) {
     const uniqueTypes = [...new Set(attachments.map((item) => item.type))];
-
     if (uniqueTypes.length === 1) {
       return uniqueTypes[0];
     }
-
     return "file";
   }
-
-  return content?.trim() ? "text" : "text";
+  return "text";
 };
 
 const MessageService = {
@@ -25,6 +22,7 @@ const MessageService = {
     content = "",
     replyToMessageId = null,
     files = [],
+    attachments: forwardedAttachments = [], // 👈 Nhận thêm attachments forward
   }) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       throw AppError(400, "conversationId không hợp lệ");
@@ -32,13 +30,6 @@ const MessageService = {
 
     if (!mongoose.Types.ObjectId.isValid(senderId)) {
       throw AppError(400, "senderId không hợp lệ");
-    }
-
-    if (
-      replyToMessageId &&
-      !mongoose.Types.ObjectId.isValid(replyToMessageId)
-    ) {
-      throw AppError(400, "replyToMessageId không hợp lệ");
     }
 
     const conversation = await Conversation.findById(conversationId);
@@ -54,21 +45,9 @@ const MessageService = {
       throw AppError(403, "Bạn không thuộc cuộc trò chuyện này");
     }
 
-    if (replyToMessageId) {
-      const repliedMessage = await Message.findById(replyToMessageId);
-      if (!repliedMessage) {
-        throw AppError(404, "Tin nhắn reply không tồn tại");
-      }
-
-      if (
-        repliedMessage.conversationId.toString() !== conversationId.toString()
-      ) {
-        throw AppError(400, "Tin nhắn reply không thuộc cuộc trò chuyện này");
-      }
-    }
-
     let attachments = [];
 
+    // Ưu tiên 1: Nếu có files mới gửi lên -> Upload lên Cloudinary
     if (files && files.length > 0) {
       const uploadResults = await Promise.all(
         files.map(async (file) => {
@@ -86,6 +65,12 @@ const MessageService = {
         width: item.width || null,
         height: item.height || null,
       }));
+    } 
+    // Ưu tiên 2: Nếu không có files nhưng có attachments gửi kèm (Trường hợp Forward)
+    else if (forwardedAttachments && forwardedAttachments.length > 0) {
+      attachments = typeof forwardedAttachments === 'string' 
+        ? JSON.parse(forwardedAttachments) 
+        : forwardedAttachments;
     }
 
     if (!content?.trim() && attachments.length === 0) {
@@ -100,7 +85,7 @@ const MessageService = {
       type: messageType,
       content: content?.trim() || "",
       attachments,
-      replyToMessageId,
+      replyToMessageId: replyToMessageId || null,
       seenBy: [
         {
           userId: senderId,
@@ -117,11 +102,7 @@ const MessageService = {
       .populate("replyToMessageId");
   },
 
-  getMessagesByConversation: async ({
-    conversationId,
-    page = 1,
-    limit = 20,
-  }) => {
+  getMessagesByConversation: async ({ conversationId, page = 1, limit = 20 }) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       throw new AppError(400, "conversationId không hợp lệ");
     }
@@ -153,22 +134,21 @@ const MessageService = {
       },
     };
   },
+
   deleteMessage: async (messageId) => {
-    const message = await Message.findByIdAndUpdate(
+    return await Message.findByIdAndUpdate(
       messageId,
       { $set: { isDeleted: true } },
       { new: true },
     );
-
-    return message;
   },
+
   revokeMessage: async (messageId) => {
-    const message = await Message.findByIdAndUpdate(
+    return await Message.findByIdAndUpdate(
       messageId,
       { $set: { isRecalled: true } },
       { new: true },
     );
-    return message;
   },
 };
 
