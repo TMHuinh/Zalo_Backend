@@ -5,12 +5,13 @@ const MessageController = {
   sendMessage: async (req, res, next) => {
     try {
       // Lấy thêm attachments từ body (dùng cho forward ảnh/file có sẵn URL)
-      const { conversationId, content, replyToMessageId, senderId, attachments } = req.body;
+      const { conversationId, content, type, replyToMessageId, senderId, attachments } = req.body;
       const files = req.files || [];
       
       const message = await MessageService.saveMessage({
         conversationId,
         senderId,
+        type,
         content,
         replyToMessageId: replyToMessageId || null,
         files,

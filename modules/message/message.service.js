@@ -15,14 +15,17 @@ const normalizeMessageType = (content, attachments) => {
   return "text";
 };
 
+const ALLOWED_TYPES = ["text", "image", "video", "file", "audio", "system", "sticker"];
+
 const MessageService = {
   saveMessage: async ({
     conversationId,
     senderId,
+    type = null,
     content = "",
     replyToMessageId = null,
     files = [],
-    attachments: forwardedAttachments = [], // 👈 Nhận thêm attachments forward
+    attachments: forwardedAttachments = [], // 👈 forward attachments
   }) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       throw AppError(400, "conversationId không hợp lệ");
@@ -65,19 +68,50 @@ const MessageService = {
         width: item.width || null,
         height: item.height || null,
       }));
-    } 
-    // Ưu tiên 2: Nếu không có files nhưng có attachments gửi kèm (Trường hợp Forward)
+    }
+    // Ưu tiên 2: Nếu không có files nhưng có attachments gửi kèm (Forward)
     else if (forwardedAttachments && forwardedAttachments.length > 0) {
-      attachments = typeof forwardedAttachments === 'string' 
-        ? JSON.parse(forwardedAttachments) 
-        : forwardedAttachments;
+      attachments =
+        typeof forwardedAttachments === "string"
+          ? JSON.parse(forwardedAttachments)
+          : forwardedAttachments;
     }
 
-    if (!content?.trim() && attachments.length === 0) {
-      throw AppError(400, "Tin nhắn không được để trống");
+    // ---- NEW: quyết định type ----
+    let messageType;
+
+    // Nếu FE có gửi type -> verify rồi dùng luôn
+    if (type != null && type !== "") {
+      if (!ALLOWED_TYPES.includes(type)) {
+        throw AppError(400, "type không hợp lệ");
+      }
+      messageType = type;
+    } else {
+      // Không gửi type -> giữ logic cũ
+      messageType = normalizeMessageType(content, attachments);
     }
 
-    const messageType = normalizeMessageType(content, attachments);
+    // ---- NEW: validate theo type (chỉ khi FE gửi type) ----
+    // (Nếu không gửi type thì giữ hành vi cũ: chỉ cần content hoặc attachments)
+    if (type != null && type !== "") {
+      if ((messageType === "text") && !content?.trim()) {
+        throw AppError(400, "Tin nhắn text không được để trống");
+      }
+
+      if ((messageType === "sticker") && !content?.trim()) {
+        throw AppError(400, "Sticker không được để trống");
+      }
+
+      // file/image mà lại không có attachments sau khi upload/forward -> lỗi
+      if ((messageType === "file" || messageType === "image") && attachments.length === 0) {
+        throw AppError(400, "Tin nhắn file/image phải có files hoặc attachments");
+      }
+    } else {
+      // validate cũ
+      if (!content?.trim() && attachments.length === 0) {
+        throw AppError(400, "Tin nhắn không được để trống");
+      }
+    }
 
     const newMessage = await Message.create({
       conversationId,
