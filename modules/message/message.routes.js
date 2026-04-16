@@ -22,5 +22,6 @@ router.get(
 
 router.delete("/delete", authMiddleware, MessageController.deleteMessage);
 router.delete("/revoke", authMiddleware, MessageController.revokeMessage);
+router.post("/chatbot", authMiddleware, MessageController.sendChatBotMessage);
 
 module.exports = router;

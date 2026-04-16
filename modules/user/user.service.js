@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const { sendEmail } = require("../../services/mail.service");
 const { uploadImage } = require("../../services/cloudinary.service");
 const Friendship = require("../../models/friendship.model");
+const { ConversationService } = require("../conversation/conversation.service");
 
 const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -58,6 +59,7 @@ const UserService = {
         </div>
       `,
     });
+    ConversationService.createOrGetAIConversation(newUser.id);
     return {
       id: newUser._id,
       fullName: newUser.fullName,

@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@sendgrid/mail": "^8.1.6",
     "aws-sdk": "^1.18.0",
     "bcryptjs": "^3.0.3",
@@ -24,6 +25,7 @@
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.4",
+    "openai": "^6.34.0",
     "socket.io": "^4.8.3",
     "uuid": "^13.0.0"
   },
