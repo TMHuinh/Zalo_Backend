@@ -4,7 +4,7 @@ const conversationSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["direct", "group"],
+      enum: ["direct", "group", "bot"],
       required: true,
     },
 

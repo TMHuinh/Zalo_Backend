@@ -23,7 +23,10 @@ const buildAutoGroupName = (users, currentUserId) => {
 
   return finalName;
 };
-
+const AI_CONVERSATION_NAME = "Trợ lý AI";
+const AI_AVATAR_URL =
+  "https://media.istockphoto.com/id/2074604864/vi/vec-to/bi%E1%BB%83u-t%C6%B0%E1%BB%A3ng-khu%C3%B4n-m%E1%BA%B7t-robot-m%E1%BA%B7t-c%C6%B0%E1%BB%9Di-chatbot-v%E1%BB%9Bi-micr%C3%B4-v%C3%A0-bong-b%C3%B3ng-l%E1%BB%9Di-tho%E1%BA%A1i-minh-h%E1%BB%8Da-%C4%91%C6%B0%E1%BB%9Dng.jpg?s=612x612&w=0&k=20&c=u3EtyOj604q3kba1ynyvrxSTPhmAEex1FJFfcskoSI4=";
+const BOT_USER_ID = process.env.CHATBOT_USER_ID;
 const ConversationService = {
   getGroupConversationByUserId: async (userId) => {
     const conversations = await Conversation.find({
@@ -139,6 +142,46 @@ const ConversationService = {
       .populate("members.userId", "_id fullName avatarUrl isOnline");
 
     return populatedConversation;
+  },
+  createOrGetAIConversation: async (userId) => {
+    if (!userId) {
+      throw new Error("Thiếu userId");
+    }
+
+    // Tìm conversation 1-1 giữa user và bot
+    let conversation = await Conversation.findOne({
+      type: "direct",
+      isDeleted: false,
+      isChatbot: true,
+      "members.userId": { $all: [userId, BOT_USER_ID] },
+    });
+
+    if (conversation) {
+      return conversation;
+    }
+    conversation = await Conversation.create({
+      type: "direct",
+      name: AI_CONVERSATION_NAME,
+      avatarUrl: AI_AVATAR_URL,
+      ownerId: userId,
+      isDeleted: false,
+      members: [
+        {
+          userId: new mongoose.Types.ObjectId(userId),
+          role: "member",
+          joinedAt: new Date(),
+        },
+        {
+          userId: new mongoose.Types.ObjectId(BOT_USER_ID),
+          role: "member",
+          joinedAt: new Date(),
+        },
+      ],
+      lastMessage: null,
+      lastMessageAt: null,
+    });
+
+    return conversation;
   },
 };
 module.exports = { ConversationService };
