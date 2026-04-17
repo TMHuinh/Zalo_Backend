@@ -241,6 +241,7 @@ const MessageService = {
     const [messages, total] = await Promise.all([
       Message.find({ conversationId })
         .populate("senderId", "fullName avatarUrl isBot")
+        .populate("reactions.userId", "fullName avatarUrl")
         .populate({
           path: "replyToMessageId",
           populate: {
