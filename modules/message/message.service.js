@@ -106,6 +106,7 @@ const MessageService = {
     replyToMessageId = null,
     files = [],
     attachments: rawAttachments = [],
+    isForwarded,
   }) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       throw AppError(400, "conversationId không hợp lệ");
@@ -188,6 +189,7 @@ const MessageService = {
           seenAt: new Date(),
         },
       ],
+      isForwarded,
     });
 
     conversation.lastMessageId = newMessage._id;
