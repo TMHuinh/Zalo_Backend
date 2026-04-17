@@ -280,6 +280,72 @@ const MessageService = {
       { new: true },
     );
   },
+
+  reactMessage: async ({ messageId, userId, emoji }) => {
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      throw AppError(400, "messageId không hợp lệ");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw AppError(400, "userId không hợp lệ");
+    }
+
+    if (!emoji || typeof emoji !== "string" || !emoji.trim()) {
+      throw AppError(400, "emoji không hợp lệ");
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      throw AppError(404, "Không tìm thấy tin nhắn");
+    }
+
+    const conversation = await Conversation.findById(message.conversationId);
+    if (!conversation) {
+      throw AppError(404, "Không tìm thấy cuộc trò chuyện");
+    }
+
+    const isMember = conversation.members.some(
+      (member) => member.userId.toString() === userId.toString(),
+    );
+
+    if (!isMember) {
+      throw AppError(403, "Bạn không thuộc cuộc trò chuyện này");
+    }
+
+    const normalizedEmoji = emoji.trim();
+    const reactionIndex = message.reactions.findIndex(
+      (item) => item.userId.toString() === userId.toString(),
+    );
+
+    if (reactionIndex === -1) {
+      message.reactions.push({
+        userId,
+        emoji: normalizedEmoji,
+      });
+    } else {
+      const currentReaction = message.reactions[reactionIndex];
+
+      if (currentReaction.emoji === normalizedEmoji) {
+        message.reactions.splice(reactionIndex, 1);
+      } else {
+        message.reactions[reactionIndex].emoji = normalizedEmoji;
+      }
+    }
+
+    await message.save();
+
+    return await Message.findById(message._id)
+      .populate("senderId", "fullName avatarUrl isBot")
+      .populate("reactions.userId", "fullName avatarUrl")
+      .populate({
+        path: "replyToMessageId",
+        populate: {
+          path: "senderId",
+          select: "fullName avatarUrl isBot",
+        },
+      });
+  },
+
 };
 
 module.exports = { MessageService };
