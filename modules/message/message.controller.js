@@ -219,6 +219,30 @@ ${content}
       next(error);
     }
   },
+
+  reactMessage: async (req, res, next) => {
+    try {
+      const { messageId, emoji } = req.body;
+      const userId = req.userId;
+
+      const message = await MessageService.reactMessage({
+        messageId,
+        userId,
+        emoji,
+      });
+
+      const conversationId = message?.conversationId?.toString();
+      const io = req.app.get("io");
+
+      if (conversationId && io) {
+        io.to(conversationId).emit("message_updated", message);
+      }
+
+      return res.status(200).json(ApiResponse(1000, message));
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = { MessageController };
