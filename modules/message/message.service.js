@@ -235,7 +235,13 @@ const MessageService = {
     const [messages, total] = await Promise.all([
       Message.find({ conversationId })
         .populate("senderId", "fullName avatarUrl isBot")
-        .populate("replyToMessageId")
+        .populate({
+          path: "replyToMessageId",
+          populate: {
+            path: "senderId",
+            select: "fullName avatarUrl isBot",
+          },
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
