@@ -196,8 +196,14 @@ const MessageService = {
     await conversation.save();
 
     return await Message.findById(newMessage._id)
-      .populate("senderId", "fullName avatarUrl isBot")
-      .populate("replyToMessageId");
+    .populate("senderId", "fullName avatarUrl isBot")
+    .populate({
+      path: "replyToMessageId",
+      populate: {
+        path: "senderId",
+        select: "fullName avatarUrl isBot",
+      },
+    });
   },
 
   saveChatbotMessage: async ({
