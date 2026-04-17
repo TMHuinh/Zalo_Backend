@@ -42,7 +42,7 @@ const BOT_SENDER_ID = process.env.CHATBOT_USER_ID;
 const MessageController = {
   sendMessage: async (req, res, next) => {
     try {
-      const { conversationId, content, type, replyToMessageId, attachments } =
+      const { conversationId, content, type, replyToMessageId, attachments, isForwarded } =
         req.body;
 
       const senderId = req.userId;
@@ -56,6 +56,7 @@ const MessageController = {
         replyToMessageId: replyToMessageId || null,
         files,
         attachments: attachments || [],
+        isForwarded: isForwarded || false,
       });
 
       const io = req.app.get("io");

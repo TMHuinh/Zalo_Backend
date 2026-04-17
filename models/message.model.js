@@ -133,6 +133,11 @@ const messageSchema = new mongoose.Schema(
       enum: ["sent", "delivered", "read", "error"],
       default: "sent",
     },
+
+    isForwarded: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );
