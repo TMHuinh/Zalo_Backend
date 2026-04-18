@@ -57,6 +57,10 @@ const conversationSchema = new mongoose.Schema(
           type: Date,
           default: null,
         },
+        deletedAt: {
+          type: Date,
+          default: null, // Mặc định là null (chưa xóa lần nào)
+        },
       },
     ],
 

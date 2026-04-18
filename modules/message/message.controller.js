@@ -189,11 +189,13 @@ ${content}
   getMessagesByConversation: async (req, res, next) => {
     try {
       const { conversationId } = req.params;
+      const userId = req.userId; // Lấy từ authMiddleware
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 20;
 
       const result = await MessageService.getMessagesByConversation({
         conversationId,
+        userId, // TRUYỀN USERID XUỐNG SERVICE
         page,
         limit,
       });

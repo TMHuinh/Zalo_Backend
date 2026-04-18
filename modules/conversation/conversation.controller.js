@@ -75,7 +75,9 @@ const ConversationController = {
   getPinnedMessages: async (req, res, next) => {
     try {
       const { conversationId } = req.params;
-      const result = await ConversationService.getPinnedMessages({ conversationId });
+      const result = await ConversationService.getPinnedMessages({
+        conversationId,
+      });
 
       return res.status(200).json(ApiResponse(1000, result));
     } catch (error) {
@@ -100,6 +102,24 @@ const ConversationController = {
         code: 1000,
         message: "Cập nhật thông tin nhóm thành công",
         result: conversation,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+  deleteConversation: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.userId;
+
+      await ConversationService.deleteConversationForUser({
+        conversationId,
+        userId,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Xóa cuộc trò chuyện thành công",
       });
     } catch (err) {
       next(err);
