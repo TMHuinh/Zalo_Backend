@@ -25,5 +25,16 @@ router.delete("/revoke", authMiddleware, MessageController.revokeMessage);
 router.post("/chatbot", authMiddleware, MessageController.sendChatBotMessage);
 
 router.post("/reaction", authMiddleware, MessageController.reactMessage);
+router.get(
+  "/:conversationId/search",
+  authMiddleware,
+  MessageController.searchMessagesInConversation,
+);
+
+router.get(
+  "/:conversationId/media",
+  authMiddleware,
+  MessageController.getConversationMedia,
+);
 
 module.exports = router;
