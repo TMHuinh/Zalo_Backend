@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Conversation = require("../../models/conversation.model");
 const Message = require("../../models/message.model");
 const User = require("../../models/user.model");
+const { uploadImage } = require("../../services/cloudinary.service");
 const buildAutoGroupName = (users, currentUserId) => {
   const otherUsers = users.filter(
     (user) => user._id.toString() !== currentUserId.toString(),
@@ -151,7 +152,7 @@ const ConversationService = {
 
     // Tìm conversation 1-1 giữa user và bot
     let conversation = await Conversation.findOne({
-      type: "direct",
+      type: "bot",
       isDeleted: false,
       isChatbot: true,
       "members.userId": { $all: [userId, BOT_USER_ID] },
@@ -344,6 +345,99 @@ const ConversationService = {
     return conversation.pinnedMessages.sort(
       (a, b) => new Date(b.pinnedAt) - new Date(a.pinnedAt),
     );
+  },
+  updateGroupInfo: async ({
+    currentUserId,
+    conversationId,
+    name,
+    avatarUrl,
+    file,
+  }) => {
+    if (!currentUserId) {
+      const error = new Error("Bạn chưa đăng nhập");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      const error = new Error("conversationId không hợp lệ");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      type: "group",
+      isDeleted: false,
+    });
+
+    if (!conversation) {
+      const error = new Error("Không tìm thấy nhóm");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const member = conversation.members.find(
+      (m) => m.userId.toString() === currentUserId.toString(),
+    );
+
+    if (!member) {
+      const error = new Error("Bạn không thuộc nhóm này");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // if (!["owner", "admin"].includes(member.role)) {
+    //   const error = new Error("Bạn không có quyền chỉnh sửa thông tin nhóm");
+    //   error.statusCode = 403;
+    //   throw error;
+    // }
+
+    const updateData = {};
+    const hasName = typeof name === "string";
+    const hasAvatarUrl = typeof avatarUrl === "string";
+    const hasFile = !!file;
+
+    if (!hasName && !hasAvatarUrl && !hasFile) {
+      const error = new Error("Phải truyền name hoặc avatar nhóm để cập nhật");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (hasName) {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        const error = new Error("Tên nhóm không được để trống");
+        error.statusCode = 400;
+        throw error;
+      }
+      updateData.name = trimmedName;
+    }
+
+    if (hasFile) {
+      // if (!file.mimetype?.startsWith("image/")) {
+      //   const error = new Error("File avatar phải là ảnh");
+      //   error.statusCode = 400;
+      //   throw error;
+      // }
+
+      const fileName = `group_${conversationId}_${Date.now()}`;
+      const uploadedUrl = await uploadImage(file.buffer, fileName);
+      updateData.avatarUrl = uploadedUrl;
+    } else if (hasAvatarUrl) {
+      updateData.avatarUrl = avatarUrl.trim();
+    }
+
+    const updatedConversation = await Conversation.findByIdAndUpdate(
+      conversationId,
+      { $set: updateData },
+      { new: true },
+    )
+      .populate("ownerId", "_id fullName avatarUrl")
+      .populate("members.userId", "_id fullName avatarUrl isOnline")
+      .populate("lastMessageId");
+
+    return updatedConversation;
   },
 };
 module.exports = { ConversationService };

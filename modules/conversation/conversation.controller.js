@@ -82,6 +82,29 @@ const ConversationController = {
       next(error);
     }
   },
+  updateGroupInfo: async (req, res, next) => {
+    try {
+      const currentUserId = req.userId;
+      const { conversationId } = req.params;
+      const { name, avatarUrl } = req.body;
+      console.log(req.file);
+      const conversation = await ConversationService.updateGroupInfo({
+        currentUserId,
+        conversationId,
+        name,
+        avatarUrl,
+        file: req.file,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Cập nhật thông tin nhóm thành công",
+        result: conversation,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 module.exports = { ConversationController };
