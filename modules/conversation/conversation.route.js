@@ -9,4 +9,15 @@ router.post(
   authMiddleware,
   ConversationController.createGroupConversation,
 );
+
+router.post("/pin", authMiddleware, ConversationController.pinMessage);
+
+router.delete("/pin", authMiddleware, ConversationController.unpinMessage);
+
+router.get(
+  "/pinned/:conversationId",
+  authMiddleware,
+  ConversationController.getPinnedMessages,
+);
+
 module.exports = router;

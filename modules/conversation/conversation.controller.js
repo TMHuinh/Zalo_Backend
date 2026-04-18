@@ -1,3 +1,4 @@
+const { ApiResponse } = require("../../utils/response");
 const { ConversationService } = require("./conversation.service");
 
 const ConversationController = {
@@ -34,6 +35,51 @@ const ConversationController = {
       });
     } catch (err) {
       next(err);
+    }
+  },
+
+  pinMessage: async (req, res, next) => {
+    try {
+      const { conversationId, messageId } = req.body;
+      const userId = req.userId;
+
+      const result = await ConversationService.pinMessage({
+        conversationId,
+        messageId,
+        userId,
+      });
+
+      return res.status(200).json(ApiResponse(1000, result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  unpinMessage: async (req, res, next) => {
+    try {
+      const { conversationId, messageId } = req.body;
+      const userId = req.userId;
+
+      const result = await ConversationService.unpinMessage({
+        conversationId,
+        messageId,
+        userId,
+      });
+
+      return res.status(200).json(ApiResponse(1000, result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getPinnedMessages: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const result = await ConversationService.getPinnedMessages({ conversationId });
+
+      return res.status(200).json(ApiResponse(1000, result));
+    } catch (error) {
+      next(error);
     }
   },
 };
