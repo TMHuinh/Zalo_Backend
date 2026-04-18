@@ -27,4 +27,9 @@ router.patch(
   upload.single("avatar"),
   ConversationController.updateGroupInfo,
 );
+router.delete(
+  "/:conversationId/clear",
+  authMiddleware,
+  ConversationController.deleteConversation
+);
 module.exports = router;

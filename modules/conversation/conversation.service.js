@@ -43,15 +43,36 @@ const ConversationService = {
   },
 
   getConversationByUserId: async (userId) => {
+    // 1. Tìm tất cả cuộc trò chuyện mà user là thành viên
     const conversations = await Conversation.find({
       isDeleted: false,
       "members.userId": userId,
     })
-      .sort({ lastMessageAt: -1 })
+      .sort({ lastMessageAt: -1 }) // Sắp xếp theo tin nhắn mới nhất
       .populate("lastMessageId")
-      .populate("members.userId", "fullName avatarUrl");
+      .populate("members.userId", "_id fullName avatarUrl");
 
-    return conversations;
+    // 2. Lọc danh sách trước khi trả về cho Frontend
+    return conversations.filter((conv) => {
+      const currentMember = conv.members.find(
+        (m) => m.userId._id.toString() === userId.toString(),
+      );
+
+      if (!currentMember) return false;
+
+      // 1. Chưa xóa thì hiện luôn
+      if (!currentMember.deletedAt) return true;
+
+      // 2. Nếu đã xóa, kiểm tra tin nhắn cuối cùng
+      if (!conv.lastMessageAt) return false;
+
+      // CHUYỂN VỀ SỐ (TIMESTAMP) ĐỂ SO SÁNH CHÍNH XÁC
+      const lastMsgTime = new Date(conv.lastMessageAt).getTime();
+      const deletedTime = new Date(currentMember.deletedAt).getTime();
+
+      // Chỉ hiện lại nếu có tin nhắn mới sau thời điểm xóa
+      return lastMsgTime > deletedTime;
+    });
   },
   createGroupConversation: async ({
     currentUserId,
@@ -234,26 +255,28 @@ const ConversationService = {
       await conversation.save();
     }
 
-    return await Conversation.findById(conversationId).populate({
-      path: "pinnedMessages.messageId",
-      populate: [
-        {
-          path: "senderId",
-          select: "fullName avatarUrl isBot",
-        },
-        {
-          path: "replyToMessageId",
-          populate: {
+    return await Conversation.findById(conversationId)
+      .populate({
+        path: "pinnedMessages.messageId",
+        populate: [
+          {
             path: "senderId",
             select: "fullName avatarUrl isBot",
           },
-        },
-        {
-          path: "reactions.userId",
-          select: "fullName avatarUrl",
-        },
-      ],
-    }).populate("pinnedMessages.pinnedBy", "fullName avatarUrl");
+          {
+            path: "replyToMessageId",
+            populate: {
+              path: "senderId",
+              select: "fullName avatarUrl isBot",
+            },
+          },
+          {
+            path: "reactions.userId",
+            select: "fullName avatarUrl",
+          },
+        ],
+      })
+      .populate("pinnedMessages.pinnedBy", "fullName avatarUrl");
   },
 
   unpinMessage: async ({ conversationId, messageId, userId }) => {
@@ -288,26 +311,28 @@ const ConversationService = {
 
     await conversation.save();
 
-    return await Conversation.findById(conversationId).populate({
-      path: "pinnedMessages.messageId",
-      populate: [
-        {
-          path: "senderId",
-          select: "fullName avatarUrl isBot",
-        },
-        {
-          path: "replyToMessageId",
-          populate: {
+    return await Conversation.findById(conversationId)
+      .populate({
+        path: "pinnedMessages.messageId",
+        populate: [
+          {
             path: "senderId",
             select: "fullName avatarUrl isBot",
           },
-        },
-        {
-          path: "reactions.userId",
-          select: "fullName avatarUrl",
-        },
-      ],
-    }).populate("pinnedMessages.pinnedBy", "fullName avatarUrl");
+          {
+            path: "replyToMessageId",
+            populate: {
+              path: "senderId",
+              select: "fullName avatarUrl isBot",
+            },
+          },
+          {
+            path: "reactions.userId",
+            select: "fullName avatarUrl",
+          },
+        ],
+      })
+      .populate("pinnedMessages.pinnedBy", "fullName avatarUrl");
   },
 
   getPinnedMessages: async ({ conversationId }) => {
@@ -438,6 +463,30 @@ const ConversationService = {
       .populate("lastMessageId");
 
     return updatedConversation;
+  },
+  deleteConversationForUser: async ({ conversationId, userId }) => {
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      throw new Error("conversationId không hợp lệ");
+    }
+
+    const conversation = await Conversation.findOneAndUpdate(
+      {
+        _id: conversationId,
+        "members.userId": userId,
+      },
+      {
+        $set: { "members.$.deletedAt": new Date() },
+      },
+      { new: true },
+    );
+
+    if (!conversation) {
+      throw new Error(
+        "Không tìm thấy cuộc trò chuyện hoặc bạn không phải thành viên",
+      );
+    }
+
+    return conversation;
   },
 };
 module.exports = { ConversationService };

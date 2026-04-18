@@ -220,8 +220,13 @@ const MessageService = {
       isForwarded,
     });
 
-    conversation.lastMessageId = newMessage._id;
-    await conversation.save();
+    await Conversation.findByIdAndUpdate(conversationId, {
+      $set: {
+        lastMessageId: newMessage._id,
+        lastMessageAt: newMessage.createdAt, // QUAN TRỌNG: Phải có dòng này
+        lastMessagePreview: trimmedContent || (attachments.length > 0 ? "[Tệp đính kèm]" : ""),
+      }
+    });
 
     return await Message.findById(newMessage._id)
       .populate("senderId", "fullName avatarUrl isBot")
@@ -250,8 +255,10 @@ const MessageService = {
     });
   },
 
+  // Tìm hàm getMessagesByConversation và sửa thành:
   getMessagesByConversation: async ({
     conversationId,
+    userId, // Thêm userId vào đây để check deletedAt
     page = 1,
     limit = 20,
   }) => {
@@ -264,10 +271,20 @@ const MessageService = {
       throw AppError(404, "Không tìm thấy cuộc trò chuyện");
     }
 
+    // Lấy mốc thời gian xóa của user này
+    const member = conversation.members.find(
+      (m) => m.userId.toString() === userId.toString(),
+    );
+    const deleteThreshold = member?.deletedAt || new Date(0);
+
     const skip = (page - 1) * limit;
 
     const [messages, total] = await Promise.all([
-      Message.find({ conversationId, isDeleted: false })
+      Message.find({
+        conversationId,
+        isDeleted: false,
+        createdAt: { $gt: deleteThreshold }, // CHỈ LẤY TIN NHẮN SAU KHI XÓA
+      })
         .populate("senderId", "fullName avatarUrl isBot")
         .populate("reactions.userId", "fullName avatarUrl")
         .populate({
@@ -280,7 +297,11 @@ const MessageService = {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Message.countDocuments({ conversationId, isDeleted: false }),
+      Message.countDocuments({
+        conversationId,
+        isDeleted: false,
+        createdAt: { $gt: deleteThreshold }, // ĐẾM CŨNG PHẢI KHỚP
+      }),
     ]);
 
     return {
