@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Conversation = require("../../models/conversation.model");
+const Message = require("../../models/message.model");
 const User = require("../../models/user.model");
 const { uploadImage } = require("../../services/cloudinary.service");
 const buildAutoGroupName = (users, currentUserId) => {
@@ -183,6 +184,167 @@ const ConversationService = {
     });
 
     return conversation;
+  },
+
+  pinMessage: async ({ conversationId, messageId, userId }) => {
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      throw AppError(400, "conversationId không hợp lệ");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      throw AppError(400, "messageId không hợp lệ");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw AppError(400, "userId không hợp lệ");
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      throw AppError(404, "Không tìm thấy cuộc trò chuyện");
+    }
+
+    const isMember = conversation.members.some(
+      (member) => member.userId.toString() === userId.toString(),
+    );
+
+    if (!isMember) {
+      throw AppError(403, "Bạn không thuộc cuộc trò chuyện này");
+    }
+
+    const message = await Message.findOne({
+      _id: messageId,
+      conversationId,
+    });
+
+    if (!message) {
+      throw AppError(404, "Không tìm thấy tin nhắn trong cuộc trò chuyện");
+    }
+
+    const existed = conversation.pinnedMessages.some(
+      (item) => item.messageId.toString() === messageId.toString(),
+    );
+
+    if (!existed) {
+      conversation.pinnedMessages.push({
+        messageId,
+        pinnedBy: userId,
+        pinnedAt: new Date(),
+      });
+      await conversation.save();
+    }
+
+    return await Conversation.findById(conversationId).populate({
+      path: "pinnedMessages.messageId",
+      populate: [
+        {
+          path: "senderId",
+          select: "fullName avatarUrl isBot",
+        },
+        {
+          path: "replyToMessageId",
+          populate: {
+            path: "senderId",
+            select: "fullName avatarUrl isBot",
+          },
+        },
+        {
+          path: "reactions.userId",
+          select: "fullName avatarUrl",
+        },
+      ],
+    }).populate("pinnedMessages.pinnedBy", "fullName avatarUrl");
+  },
+
+  unpinMessage: async ({ conversationId, messageId, userId }) => {
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      throw AppError(400, "conversationId không hợp lệ");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      throw AppError(400, "messageId không hợp lệ");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw AppError(400, "userId không hợp lệ");
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      throw AppError(404, "Không tìm thấy cuộc trò chuyện");
+    }
+
+    const isMember = conversation.members.some(
+      (member) => member.userId.toString() === userId.toString(),
+    );
+
+    if (!isMember) {
+      throw AppError(403, "Bạn không thuộc cuộc trò chuyện này");
+    }
+
+    conversation.pinnedMessages = conversation.pinnedMessages.filter(
+      (item) => item.messageId.toString() !== messageId.toString(),
+    );
+
+    await conversation.save();
+
+    return await Conversation.findById(conversationId).populate({
+      path: "pinnedMessages.messageId",
+      populate: [
+        {
+          path: "senderId",
+          select: "fullName avatarUrl isBot",
+        },
+        {
+          path: "replyToMessageId",
+          populate: {
+            path: "senderId",
+            select: "fullName avatarUrl isBot",
+          },
+        },
+        {
+          path: "reactions.userId",
+          select: "fullName avatarUrl",
+        },
+      ],
+    }).populate("pinnedMessages.pinnedBy", "fullName avatarUrl");
+  },
+
+  getPinnedMessages: async ({ conversationId }) => {
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      throw AppError(400, "conversationId không hợp lệ");
+    }
+
+    const conversation = await Conversation.findById(conversationId)
+      .populate({
+        path: "pinnedMessages.messageId",
+        populate: [
+          {
+            path: "senderId",
+            select: "fullName avatarUrl isBot",
+          },
+          {
+            path: "replyToMessageId",
+            populate: {
+              path: "senderId",
+              select: "fullName avatarUrl isBot",
+            },
+          },
+          {
+            path: "reactions.userId",
+            select: "fullName avatarUrl",
+          },
+        ],
+      })
+      .populate("pinnedMessages.pinnedBy", "fullName avatarUrl");
+
+    if (!conversation) {
+      throw AppError(404, "Không tìm thấy cuộc trò chuyện");
+    }
+
+    return conversation.pinnedMessages.sort(
+      (a, b) => new Date(b.pinnedAt) - new Date(a.pinnedAt),
+    );
   },
   updateGroupInfo: async ({
     currentUserId,
