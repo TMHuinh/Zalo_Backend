@@ -42,8 +42,14 @@ const BOT_SENDER_ID = process.env.CHATBOT_USER_ID;
 const MessageController = {
   sendMessage: async (req, res, next) => {
     try {
-      const { conversationId, content, type, replyToMessageId, attachments, isForwarded } =
-        req.body;
+      const {
+        conversationId,
+        content,
+        type,
+        replyToMessageId,
+        attachments,
+        isForwarded,
+      } = req.body;
 
       const senderId = req.userId;
       const files = req.files || [];
@@ -82,7 +88,7 @@ const MessageController = {
         content: content.trim(),
         type: "text",
         attachments: [],
-        replyToMessageId: replyToMessageId || null,
+        replyToMessageId: null,
       });
 
       let botMessage = null;
@@ -90,29 +96,41 @@ const MessageController = {
       try {
         const prompt = `
 Bạn là chatbot hỗ trợ người dùng.
+
 Yêu cầu:
 - Trả lời bằng tiếng Việt
-- Ngắn gọn, thân thiện
-- Nội dung chính phải là HTML đơn giản, chỉ dùng các thẻ: p, ul, ol, li, b, i, br
-- Không dùng style inline, script, iframe, table
-- Nếu không cần file đính kèm thì attachments là []
-- Nếu có hình/file minh họa thì đưa vào attachments bằng URL tuyệt đối hợp lệ
-- Chỉ trả về JSON hợp lệ, không bọc markdown, không giải thích thêm
+- Nội dung chính là HTML đơn giản: p, ul, ol, li, b, i, br
+- Không dùng style, script, iframe, table
+- Không cần tạo ảnh nếu người dùng không có yêu cầu rõ là tạo ảnh
+QUAN TRỌNG:
+- Nếu cần hình minh họa:
+  + CHỈ sử dụng ảnh từ các nguồn có thật: bằng cách tìm kiếm trên google 
+  + URL phải là link trực tiếp
+  + Khi tìm hình ảnh trên các nguồn phải tự biết chuyển cái keyword thành tiếng anh để tìm kiếm và lấy về url của ảnh
+  + KHÔNG được tự tạo URL giả
+  + Nếu không chắc chắn → attachments = []
+  + Không tạo ảnh nếu không được yêu cầu
+- Nếu không cần ảnh → attachments = []
 
-Định dạng:
+Định dạng trả về JSON khi có ảnh:
 {
   "content": "<p>...</p>",
   "attachments": [
     {
       "type": "image",
-      "url": "https://example.com/demo.png",
-      "fileName": "demo.png",
-      "mimeType": "image/png"
+      "url": "https://images.unsplash.com/...",
+      "fileName": "image.jpg",
+      "mimeType": "image/jpeg"
     }
   ]
 }
+Định dạng trả về JSON khi không có ảnh:
+{
+  "content": "<p>...</p>",
+  "attachments": []
+}
 
-Câu hỏi người dùng:
+Câu hỏi:
 ${content}
 `;
 
@@ -142,7 +160,7 @@ ${content}
           chatbotSenderId: BOT_SENDER_ID,
           content: normalizedContent,
           attachments: normalizedAttachments,
-          replyToMessageId: userMessage._id,
+          replyToMessageId: null,
         });
       } catch (botError) {
         console.error("❌ Chatbot generate failed:", botError);
@@ -154,7 +172,7 @@ ${content}
           content:
             "<p>Xin lỗi, hiện tại chatbot đang gặp lỗi. Bạn vui lòng thử lại sau nhé.</p>",
           attachments: [],
-          replyToMessageId: userMessage._id,
+          replyToMessageId: null,
         });
       }
 
@@ -239,6 +257,51 @@ ${content}
       }
 
       return res.status(200).json(ApiResponse(1000, message));
+    } catch (error) {
+      next(error);
+    }
+  },
+  searchMessagesInConversation: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const { keyword, page = 1, limit = 20 } = req.query;
+      const userId = req.user?.id || req.user?._id;
+
+      const result = await MessageService.searchMessagesInConversation({
+        conversationId,
+        userId,
+        keyword,
+        page: Number(page),
+        limit: Number(limit),
+      });
+
+      return res.status(200).json({
+        message: "Tìm tin nhắn thành công",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getConversationMedia: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const { type = "all", page = 1, limit = 30 } = req.query;
+      const userId = req.user?.id || req.user?._id;
+
+      const result = await MessageService.getConversationMedia({
+        conversationId,
+        userId,
+        mediaType: type,
+        page: Number(page),
+        limit: Number(limit),
+      });
+
+      return res.status(200).json({
+        message: "Lấy media thành công",
+        data: result,
+      });
     } catch (error) {
       next(error);
     }

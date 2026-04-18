@@ -97,6 +97,37 @@ const validateMessage = ({ type, content, attachments }) => {
   }
 };
 
+const escapeRegex = (value = "") => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+const ensureConversationAndMember = async ({ conversationId, userId }) => {
+  if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+    throw AppError(400, "conversationId không hợp lệ");
+  }
+
+  if (userId && !mongoose.Types.ObjectId.isValid(userId)) {
+    throw AppError(400, "userId không hợp lệ");
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation) {
+    throw AppError(404, "Không tìm thấy cuộc trò chuyện");
+  }
+
+  if (userId) {
+    const isMember = conversation.members.some(
+      (member) => member.userId.toString() === userId.toString(),
+    );
+
+    if (!isMember) {
+      throw AppError(403, "Bạn không thuộc cuộc trò chuyện này");
+    }
+  }
+
+  return conversation;
+};
+
 const MessageService = {
   saveMessage: async ({
     conversationId,
@@ -138,7 +169,6 @@ const MessageService = {
 
     let attachments = [];
 
-    // 1. Có file upload mới từ client
     if (Array.isArray(files) && files.length > 0) {
       const uploadResults = await Promise.all(
         files.map((file) => uploadAttachment(file)),
@@ -156,9 +186,7 @@ const MessageService = {
           height: item.height,
         })),
       );
-    }
-    // 2. Có attachments có sẵn URL (forward/chatbot)
-    else {
+    } else {
       attachments = normalizeAttachments(parseJsonIfString(rawAttachments, []));
     }
 
@@ -196,14 +224,14 @@ const MessageService = {
     await conversation.save();
 
     return await Message.findById(newMessage._id)
-    .populate("senderId", "fullName avatarUrl isBot")
-    .populate({
-      path: "replyToMessageId",
-      populate: {
-        path: "senderId",
-        select: "fullName avatarUrl isBot",
-      },
-    });
+      .populate("senderId", "fullName avatarUrl isBot")
+      .populate({
+        path: "replyToMessageId",
+        populate: {
+          path: "senderId",
+          select: "fullName avatarUrl isBot",
+        },
+      });
   },
 
   saveChatbotMessage: async ({
@@ -239,7 +267,7 @@ const MessageService = {
     const skip = (page - 1) * limit;
 
     const [messages, total] = await Promise.all([
-      Message.find({ conversationId })
+      Message.find({ conversationId, isDeleted: false })
         .populate("senderId", "fullName avatarUrl isBot")
         .populate("reactions.userId", "fullName avatarUrl")
         .populate({
@@ -252,11 +280,172 @@ const MessageService = {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Message.countDocuments({ conversationId }),
+      Message.countDocuments({ conversationId, isDeleted: false }),
     ]);
 
     return {
       data: messages,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  },
+
+  searchMessagesInConversation: async ({
+    conversationId,
+    userId,
+    keyword,
+    page = 1,
+    limit = 20,
+  }) => {
+    await ensureConversationAndMember({ conversationId, userId });
+
+    const trimmedKeyword = keyword?.trim();
+    if (!trimmedKeyword) {
+      throw AppError(400, "keyword không được để trống");
+    }
+
+    const skip = (page - 1) * limit;
+    const regex = new RegExp(escapeRegex(trimmedKeyword), "i");
+
+    const query = {
+      conversationId,
+      isDeleted: false,
+      isRecalled: false,
+      $or: [{ content: regex }, { "attachments.fileName": regex }],
+    };
+
+    const [messages, total] = await Promise.all([
+      Message.find(query)
+        .populate("senderId", "fullName avatarUrl isBot")
+        .populate("reactions.userId", "fullName avatarUrl")
+        .populate({
+          path: "replyToMessageId",
+          populate: {
+            path: "senderId",
+            select: "fullName avatarUrl isBot",
+          },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Message.countDocuments(query),
+    ]);
+
+    return {
+      keyword: trimmedKeyword,
+      data: messages,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  },
+
+  getConversationMedia: async ({
+    conversationId,
+    userId,
+    mediaType = "all",
+    page = 1,
+    limit = 30,
+  }) => {
+    await ensureConversationAndMember({ conversationId, userId });
+
+    const skip = (page - 1) * limit;
+
+    const allowedMediaTypes = ["all", "image", "video", "file", "audio"];
+    if (!allowedMediaTypes.includes(mediaType)) {
+      throw AppError(400, "mediaType không hợp lệ");
+    }
+
+    const matchCondition = {
+      conversationId: new mongoose.Types.ObjectId(conversationId),
+      isDeleted: false,
+      isRecalled: false,
+      attachments: { $exists: true, $ne: [] },
+    };
+
+    const attachmentTypeCondition =
+      mediaType === "all" ? {} : { "attachments.type": mediaType };
+
+    const pipeline = [
+      {
+        $match: {
+          ...matchCondition,
+          ...attachmentTypeCondition,
+        },
+      },
+      {
+        $unwind: "$attachments",
+      },
+      ...(mediaType === "all"
+        ? []
+        : [
+            {
+              $match: {
+                "attachments.type": mediaType,
+              },
+            },
+          ]),
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+      {
+        $facet: {
+          items: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: "users",
+                localField: "senderId",
+                foreignField: "_id",
+                as: "sender",
+              },
+            },
+            {
+              $unwind: {
+                path: "$sender",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                conversationId: 1,
+                messageType: "$type",
+                content: 1,
+                createdAt: 1,
+                sender: {
+                  _id: "$sender._id",
+                  fullName: "$sender.fullName",
+                  avatarUrl: "$sender.avatarUrl",
+                  isBot: "$sender.isBot",
+                },
+                attachment: "$attachments",
+              },
+            },
+          ],
+          totalCount: [{ $count: "count" }],
+        },
+      },
+    ];
+
+    const result = await Message.aggregate(pipeline);
+
+    const items = result?.[0]?.items || [];
+    const total = result?.[0]?.totalCount?.[0]?.count || 0;
+
+    return {
+      filter: mediaType,
+      data: items,
       pagination: {
         page,
         limit,
@@ -281,7 +470,6 @@ const MessageService = {
       { new: true },
     );
   },
-
   reactMessage: async ({ messageId, userId, emoji }) => {
     if (!mongoose.Types.ObjectId.isValid(messageId)) {
       throw AppError(400, "messageId không hợp lệ");
@@ -346,7 +534,6 @@ const MessageService = {
         },
       });
   },
-
 };
 
 module.exports = { MessageService };
