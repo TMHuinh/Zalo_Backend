@@ -47,4 +47,14 @@ router.patch(
   authMiddleware,
   ConversationController.assignGroupOwner,
 );
+router.delete(
+  "/:conversationId/disband",
+  authMiddleware,
+  ConversationController.disbandGroup,
+);
+router.post(
+  "/:conversationId/members",
+  authMiddleware,
+  ConversationController.addMembersToGroup,
+);
 module.exports = router;

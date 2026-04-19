@@ -710,5 +710,78 @@ const ConversationService = {
 
     return updatedConversation;
   },
+  disbandGroup: async ({ currentUserId, conversationId }) => {
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      type: "group",
+      isDeleted: false,
+    });
+
+    if (!conversation) {
+      const error = new Error("Không tìm thấy nhóm hoặc nhóm đã bị giải tán");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Chỉ trưởng nhóm (ownerId) mới có quyền giải tán
+    if (conversation.ownerId.toString() !== currentUserId.toString()) {
+      const error = new Error("Chỉ trưởng nhóm mới có quyền giải tán nhóm");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // Đánh dấu xóa vĩnh viễn cuộc hội thoại
+    conversation.isDeleted = true;
+    await conversation.save();
+
+    return { conversationId };
+  },
+  addMembersToGroup: async ({ currentUserId, conversationId, memberIds }) => {
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      type: "group",
+      isDeleted: false,
+    });
+    if (!conversation) throw new Error("Không tìm thấy nhóm");
+
+    // Kiểm tra người thực hiện có trong nhóm không
+    const isMember = conversation.members.some(
+      (m) => m.userId.toString() === currentUserId.toString(),
+    );
+    if (!isMember)
+      throw new Error("Bạn không có quyền thêm thành viên vào nhóm này");
+
+    // Lọc ra các ID thực sự mới (chưa có trong nhóm)
+    const existingMemberIds = conversation.members.map((m) =>
+      m.userId.toString(),
+    );
+    const newMemberIds = memberIds.filter(
+      (id) => !existingMemberIds.includes(id.toString()),
+    );
+
+    if (newMemberIds.length === 0) return conversation;
+
+    // Kiểm tra các User ID mới có hợp lệ không
+    const users = await User.find({
+      _id: { $in: newMemberIds },
+      isDeleted: { $ne: true },
+    });
+    if (users.length !== newMemberIds.length)
+      throw new Error("Một số người dùng không tồn tại");
+
+    // Thêm vào mảng members
+    const newMembers = newMemberIds.map((id) => ({
+      userId: id,
+      role: "member",
+      joinedAt: new Date(),
+    }));
+    conversation.members.push(...newMembers);
+
+    await conversation.save();
+
+    return await Conversation.findById(conversationId)
+      .populate("ownerId", "_id fullName avatarUrl")
+      .populate("members.userId", "_id fullName avatarUrl isOnline");
+  },
 };
 module.exports = { ConversationService };
