@@ -125,6 +125,66 @@ const ConversationController = {
       next(err);
     }
   },
+  getGroupMembers: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const currentUserId = req.userId;
+
+      const members = await ConversationService.getGroupMembers({
+        conversationId,
+        currentUserId,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Lấy danh sách thành viên nhóm thành công",
+        result: members,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+  removeMemberFromGroup: async (req, res, next) => {
+    try {
+      const { conversationId, memberId } = req.params;
+      const currentUserId = req.userId;
+
+      const result = await ConversationService.removeMemberFromGroup({
+        currentUserId,
+        conversationId,
+        memberId,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Xóa thành viên khỏi nhóm thành công",
+        result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+  assignGroupOwner: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const { memberId } = req.body;
+      const currentUserId = req.userId;
+
+      const result = await ConversationService.assignGroupOwner({
+        currentUserId,
+        conversationId,
+        memberId,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Bổ nhiệm trưởng nhóm thành công",
+        result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = { ConversationController };

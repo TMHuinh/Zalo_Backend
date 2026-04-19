@@ -488,5 +488,227 @@ const ConversationService = {
 
     return conversation;
   },
+  getGroupMembers: async ({ conversationId, currentUserId }) => {
+    if (!currentUserId) {
+      const error = new Error("Bạn chưa đăng nhập");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      const error = new Error("conversationId không hợp lệ");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      type: "group",
+      isDeleted: false,
+    }).populate("members.userId", "_id fullName avatarUrl");
+
+    if (!conversation) {
+      const error = new Error("Không tìm thấy nhóm");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const isMember = conversation.members.some(
+      (member) => member.userId?._id?.toString() === currentUserId.toString(),
+    );
+
+    if (!isMember) {
+      const error = new Error("Bạn không thuộc nhóm này");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    return conversation.members.map((member) => ({
+      id: member.userId?._id?.toString() ?? "",
+      fullName: member.userId?.fullName ?? "",
+      avatarUrl: member.userId?.avatarUrl ?? "",
+      role: member.role ?? "member",
+    }));
+  },
+  removeMemberFromGroup: async ({
+    currentUserId,
+    conversationId,
+    memberId,
+  }) => {
+    if (!currentUserId) {
+      const error = new Error("Bạn chưa đăng nhập");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      const error = new Error("conversationId không hợp lệ");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(memberId)) {
+      const error = new Error("memberId không hợp lệ");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      type: "group",
+      isDeleted: false,
+    });
+
+    if (!conversation) {
+      const error = new Error("Không tìm thấy nhóm");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const currentMember = conversation.members.find(
+      (m) => m.userId.toString() === currentUserId.toString(),
+    );
+
+    if (!currentMember) {
+      const error = new Error("Bạn không thuộc nhóm này");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // Chỉ trưởng nhóm mới được xóa thành viên
+    if (currentMember.role !== "owner") {
+      const error = new Error("Chỉ trưởng nhóm mới có quyền xóa thành viên");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    if (memberId.toString() === currentUserId.toString()) {
+      const error = new Error(
+        "Không thể tự xóa chính mình khỏi nhóm bằng chức năng này",
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const targetMember = conversation.members.find(
+      (m) => m.userId.toString() === memberId.toString(),
+    );
+
+    if (!targetMember) {
+      const error = new Error("Không tìm thấy thành viên trong nhóm");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (targetMember.role === "owner") {
+      const error = new Error("Không thể xóa trưởng nhóm");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    conversation.members = conversation.members.filter(
+      (m) => m.userId.toString() !== memberId.toString(),
+    );
+
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(conversationId)
+      .populate("ownerId", "_id fullName avatarUrl")
+      .populate("members.userId", "_id fullName avatarUrl isOnline")
+      .populate("lastMessageId");
+
+    return updatedConversation;
+  },
+  assignGroupOwner: async ({ currentUserId, conversationId, memberId }) => {
+    if (!currentUserId) {
+      const error = new Error("Bạn chưa đăng nhập");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      const error = new Error("conversationId không hợp lệ");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(memberId)) {
+      const error = new Error("memberId không hợp lệ");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      type: "group",
+      isDeleted: false,
+    });
+
+    if (!conversation) {
+      const error = new Error("Không tìm thấy nhóm");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const currentMember = conversation.members.find(
+      (m) => m.userId.toString() === currentUserId.toString(),
+    );
+
+    if (!currentMember) {
+      const error = new Error("Bạn không thuộc nhóm này");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    if (currentMember.role !== "owner") {
+      const error = new Error(
+        "Chỉ trưởng nhóm mới có quyền bổ nhiệm trưởng nhóm",
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const targetMember = conversation.members.find(
+      (m) => m.userId.toString() === memberId.toString(),
+    );
+
+    if (!targetMember) {
+      const error = new Error("Không tìm thấy thành viên trong nhóm");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (targetMember.userId.toString() === currentUserId.toString()) {
+      const error = new Error("Bạn đang là trưởng nhóm");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const oldOwnerMember = conversation.members.find(
+      (m) => m.userId.toString() === currentUserId.toString(),
+    );
+
+    if (!oldOwnerMember) {
+      const error = new Error("Không tìm thấy trưởng nhóm hiện tại");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Đổi role
+    oldOwnerMember.role = "member";
+    targetMember.role = "owner";
+
+    // Đổi ownerId
+    conversation.ownerId = targetMember.userId;
+
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(conversationId)
+      .populate("ownerId", "_id fullName avatarUrl")
+      .populate("members.userId", "_id fullName avatarUrl isOnline")
+      .populate("lastMessageId");
+
+    return updatedConversation;
+  },
 };
 module.exports = { ConversationService };

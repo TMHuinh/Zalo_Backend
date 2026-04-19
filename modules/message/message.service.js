@@ -337,6 +337,7 @@ const MessageService = {
       isDeleted: false,
       isRecalled: false,
       $or: [{ content: regex }, { "attachments.fileName": regex }],
+      type: "text",
     };
 
     const [messages, total] = await Promise.all([
