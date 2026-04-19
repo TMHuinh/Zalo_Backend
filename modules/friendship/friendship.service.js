@@ -192,7 +192,34 @@ const FriendshipService = {
       };
     });
 
-    friends.sort((a, b) => {
+    const friendIds = friends.map((f) => f._id);
+
+    const directConversations = await Conversation.find({
+      type: "direct",
+      "members.userId": {
+        $all: [new mongoose.Types.ObjectId(userId)],
+        $in: friendIds,
+      },
+    }).select("_id members lastMessageAt");
+
+    const conversationMap = new Map();
+
+    for (const conv of directConversations) {
+      const otherMember = conv.members.find(
+        (m) => m.userId.toString() !== userId.toString(),
+      );
+
+      if (otherMember) {
+        conversationMap.set(otherMember.userId.toString(), conv._id.toString());
+      }
+    }
+
+    const enrichedFriends = friends.map((friend) => ({
+      ...friend,
+      conversationId: conversationMap.get(friend._id.toString()) || null,
+    }));
+
+    enrichedFriends.sort((a, b) => {
       const charCompare = (a.firstChar || "#").localeCompare(
         b.firstChar || "#",
       );
@@ -205,7 +232,7 @@ const FriendshipService = {
 
     const grouped = {};
 
-    for (const friend of friends) {
+    for (const friend of enrichedFriends) {
       const key = friend.firstChar || "#";
 
       if (!grouped[key]) {

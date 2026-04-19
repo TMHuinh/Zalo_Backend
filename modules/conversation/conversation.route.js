@@ -30,6 +30,21 @@ router.patch(
 router.delete(
   "/:conversationId/clear",
   authMiddleware,
-  ConversationController.deleteConversation
+  ConversationController.deleteConversation,
+);
+router.get(
+  "/:conversationId/members",
+  authMiddleware,
+  ConversationController.getGroupMembers,
+);
+router.delete(
+  "/:conversationId/members/:memberId",
+  authMiddleware,
+  ConversationController.removeMemberFromGroup,
+);
+router.patch(
+  "/:conversationId/owner",
+  authMiddleware,
+  ConversationController.assignGroupOwner,
 );
 module.exports = router;
