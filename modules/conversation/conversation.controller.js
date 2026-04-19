@@ -185,6 +185,45 @@ const ConversationController = {
       next(error);
     }
   },
+  disbandGroup: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const currentUserId = req.userId;
+
+      await ConversationService.disbandGroup({
+        currentUserId,
+        conversationId,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Giải tán nhóm thành công",
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+  addMembersToGroup: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const { memberIds } = req.body; // Mảng các ID muốn thêm
+      const currentUserId = req.userId;
+
+      const result = await ConversationService.addMembersToGroup({
+        currentUserId,
+        conversationId,
+        memberIds,
+      });
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Thêm thành viên thành công",
+        result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 module.exports = { ConversationController };
