@@ -58,12 +58,23 @@ const handleSocket = (io) => {
         console.error("Disconnect error:", error);
       }
     });
-    
-    socket.on("recall_message", ({ toUserId, messageId }) => {
+
+    socket.on("recall_message", ({ type, toUserId, groupId, messageId, conversationId }) => {
       console.log(`User recalls message: ${messageId}`);
-      io.to(toUserId.toString()).emit("message_recalled", {
+
+      const payload = {
         messageId,
-      });
+        conversationId, // 🔥 THÊM CÁI NÀY
+      };
+
+      if (type === "group" && groupId) {
+        io.to(groupId.toString()).emit("message_recalled", payload);
+        return;
+      }
+
+      if (type === "direct" && toUserId) {
+        io.to(toUserId.toString()).emit("message_recalled", payload);
+      }
     });
 
     socket.on("delete_message", ({ toUserId, messageId }) => {
