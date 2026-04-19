@@ -92,6 +92,64 @@ const handleSocket = (io) => {
     socket.on("leave_conversation", (conversationId) => {
       socket.leave(conversationId.toString());
     });
+    socket.on("react_message", ({ type, toUserId, groupId, conversationId, messageId, reaction, userId }) => {
+      const payload = {
+        conversationId,
+        messageId,
+        reaction,
+        userId,
+      };
+
+      if (type === "group" && groupId) {
+        io.to(groupId.toString()).emit("message_reacted", payload);
+        return;
+      }
+
+      if (type === "direct" && toUserId) {
+        io.to(toUserId.toString()).emit("message_reacted", payload);
+      }
+    });
+    socket.on(
+      "pin_message",
+      ({ type, conversationId, groupId, toUserId, messageId, userId, message }) => {
+        const payload = {
+          conversationId,
+          messageId,
+          userId,
+          message,
+        };
+
+        if (type === "group" && groupId) {
+          io.to(groupId.toString()).emit("message_pinned", payload);
+          return;
+        }
+
+        if (type === "direct" && toUserId) {
+          io.to(toUserId.toString()).emit("message_pinned", payload);
+        }
+      },
+    );
+
+    socket.on(
+      "unpin_message",
+      ({ type, conversationId, groupId, toUserId, messageId, userId, message }) => {
+        const payload = {
+          conversationId,
+          messageId,
+          userId,
+          message,
+        };
+
+        if (type === "group" && groupId) {
+          io.to(groupId.toString()).emit("message_unpinned", payload);
+          return;
+        }
+
+        if (type === "direct" && toUserId) {
+          io.to(toUserId.toString()).emit("message_unpinned", payload);
+        }
+      },
+    );
   });
 };
 
