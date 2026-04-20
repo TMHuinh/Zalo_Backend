@@ -95,22 +95,15 @@ const handleSocket = (io) => {
     socket.on("leave_conversation", (conversationId) => {
       socket.leave(conversationId.toString());
     });
+    // ===== REACTION =====
     socket.on(
       "react_message",
-      ({
-        type,
-        toUserId,
-        groupId,
-        conversationId,
-        messageId,
-        reaction,
-        userId,
-      }) => {
+      ({ type, toUserId, groupId, userId, message }) => {
+        if (!message?._id) return;
+
         const payload = {
-          conversationId,
-          messageId,
-          reaction,
           userId,
+          message,
         };
 
         if (type === "group" && groupId) {
@@ -121,22 +114,17 @@ const handleSocket = (io) => {
         if (type === "direct" && toUserId) {
           io.to(toUserId.toString()).emit("message_reacted", payload);
         }
-      },
+      }
     );
+
+    // ===== PIN =====
     socket.on(
       "pin_message",
-      ({
-        type,
-        conversationId,
-        groupId,
-        toUserId,
-        messageId,
-        userId,
-        message,
-      }) => {
+      ({ type, toUserId, groupId, userId, message }) => {
+
+        if (!message?._id) return;
+
         const payload = {
-          conversationId,
-          messageId,
           userId,
           message,
         };
@@ -149,7 +137,7 @@ const handleSocket = (io) => {
         if (type === "direct" && toUserId) {
           io.to(toUserId.toString()).emit("message_pinned", payload);
         }
-      },
+      }
     );
     // THÊM MỚI
     socket.on("disband_group", ({ conversationId, userId, groupName }) => {
@@ -170,20 +158,13 @@ const handleSocket = (io) => {
       socket.to(conversationId.toString()).emit("group_disbanded", payload);
     });
 
+    // ===== UNPIN =====
     socket.on(
       "unpin_message",
-      ({
-        type,
-        conversationId,
-        groupId,
-        toUserId,
-        messageId,
-        userId,
-        message,
-      }) => {
+      ({ type, toUserId, groupId, userId, message }) => {
+        if (!message?._id) return;
+
         const payload = {
-          conversationId,
-          messageId,
           userId,
           message,
         };
@@ -196,7 +177,7 @@ const handleSocket = (io) => {
         if (type === "direct" && toUserId) {
           io.to(toUserId.toString()).emit("message_unpinned", payload);
         }
-      },
+      }
     );
   });
 };
