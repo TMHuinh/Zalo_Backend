@@ -29,6 +29,28 @@ const ConversationController = {
         memberIds,
       });
 
+      const io = req.app.get("io");
+      // owner join room group nếu cần
+      await io
+        .in(currentUserId.toString())
+        .socketsJoin(conversation._id.toString());
+
+      // chỉ gửi cho các thành viên mới được thêm
+      const addedMemberIds = [
+        ...new Set(memberIds.map((id) => id.toString())),
+      ].filter((id) => id && id !== currentUserId.toString());
+
+      for (const userId of addedMemberIds) {
+        await io.in(userId).socketsJoin(conversation._id.toString());
+
+        io.to(userId).emit("added_to_group", {
+          conversationId: conversation._id.toString(),
+          groupName: conversation.name,
+          avatarUrl: conversation.avatarUrl || "",
+          createdAt: conversation.createdAt,
+        });
+      }
+
       return res.status(200).json({
         message: "Tạo nhóm thành công",
         data: conversation,
@@ -153,6 +175,16 @@ const ConversationController = {
         currentUserId,
         conversationId,
         memberId,
+      });
+      const io = req.app.get("io");
+      // 1) ngắt mọi socket đang online của member này khỏi room group
+      await io.in(memberId.toString()).socketsLeave(conversationId.toString());
+
+      // 2) báo cho chính member đó biết là bị xóa khỏi nhóm
+      io.to(memberId.toString()).emit("removed_from_group", {
+        conversationId: conversationId.toString(),
+        removedBy: currentUserId?.toString() ?? "",
+        message: "Bạn đã bị xóa khỏi nhóm",
       });
 
       return res.status(200).json({

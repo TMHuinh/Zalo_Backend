@@ -59,23 +59,26 @@ const handleSocket = (io) => {
       }
     });
 
-    socket.on("recall_message", ({ type, toUserId, groupId, messageId, conversationId }) => {
-      console.log(`User recalls message: ${messageId}`);
+    socket.on(
+      "recall_message",
+      ({ type, toUserId, groupId, messageId, conversationId }) => {
+        console.log(`User recalls message: ${messageId}`);
 
-      const payload = {
-        messageId,
-        conversationId, // 🔥 THÊM CÁI NÀY
-      };
+        const payload = {
+          messageId,
+          conversationId, // 🔥 THÊM CÁI NÀY
+        };
 
-      if (type === "group" && groupId) {
-        io.to(groupId.toString()).emit("message_recalled", payload);
-        return;
-      }
+        if (type === "group" && groupId) {
+          io.to(groupId.toString()).emit("message_recalled", payload);
+          return;
+        }
 
-      if (type === "direct" && toUserId) {
-        io.to(toUserId.toString()).emit("message_recalled", payload);
-      }
-    });
+        if (type === "direct" && toUserId) {
+          io.to(toUserId.toString()).emit("message_recalled", payload);
+        }
+      },
+    );
 
     socket.on("delete_message", ({ toUserId, messageId }) => {
       console.log(`User deletes message: ${messageId}`);
@@ -136,6 +139,24 @@ const handleSocket = (io) => {
         }
       }
     );
+    // THÊM MỚI
+    socket.on("disband_group", ({ conversationId, userId, groupName }) => {
+      if (!conversationId) return;
+
+      console.log(`Group disbanded: ${conversationId} by user ${userId}`);
+
+      const payload = {
+        conversationId,
+        userId,
+        groupName: groupName || "",
+        message: groupName?.trim()
+          ? `Nhóm "${groupName}" đã bị giải tán`
+          : "Nhóm đã bị giải tán",
+      };
+
+      // socket.to để không bắn lại cho chính owner
+      socket.to(conversationId.toString()).emit("group_disbanded", payload);
+    });
 
     // ===== UNPIN =====
     socket.on(
