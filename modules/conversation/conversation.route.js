@@ -57,4 +57,9 @@ router.post(
   authMiddleware,
   ConversationController.addMembersToGroup,
 );
+router.delete(
+  "/:conversationId/leave",
+  authMiddleware,
+  ConversationController.leaveGroup,
+);
 module.exports = router;

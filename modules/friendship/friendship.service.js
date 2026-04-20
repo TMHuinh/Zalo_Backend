@@ -166,7 +166,8 @@ const FriendshipService = {
   // ===============================
   // 📌 GET FRIENDS
   // ===============================
-  getFriends: async (userId) => {
+
+  getFriends: async (userId, excludeUserIds = []) => {
     const friendships = await Friendship.find({
       status: "accepted",
       $or: [{ requesterId: userId }, { addresseeId: userId }],
@@ -180,7 +181,7 @@ const FriendshipService = {
         "fullName avatarUrl isOnline firstChar fullNameNormalized",
       );
 
-    const friends = friendships.map((f) => {
+    let friends = friendships.map((f) => {
       const friend =
         f.requesterId._id.toString() === userId.toString()
           ? f.addresseeId
@@ -191,6 +192,12 @@ const FriendshipService = {
         ...friend.toObject(),
       };
     });
+
+    // loại bỏ những user nằm trong mảng excludeUserIds
+    const excludeSet = new Set(excludeUserIds.map((id) => id.toString()));
+    friends = friends.filter(
+      (friend) => !excludeSet.has(friend._id.toString()),
+    );
 
     const friendIds = friends.map((f) => f._id);
 
@@ -244,7 +251,6 @@ const FriendshipService = {
 
     return grouped;
   },
-
   // ===============================
   // 📌 GET PENDING
   // ===============================

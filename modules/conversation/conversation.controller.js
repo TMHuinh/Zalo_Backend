@@ -224,6 +224,27 @@ const ConversationController = {
       next(err);
     }
   },
+  leaveGroup: async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const currentUserId = req.userId;
+
+      const result = await ConversationService.leaveGroup({
+        currentUserId,
+        conversationId,
+      });
+      const io = req.app.get("io");
+      io.in(currentUserId.toString()).socketsLeave(conversationId.toString());
+
+      return res.status(200).json({
+        code: 1000,
+        message: "Rời nhóm thành công",
+        result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = { ConversationController };
