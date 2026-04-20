@@ -783,5 +783,83 @@ const ConversationService = {
       .populate("ownerId", "_id fullName avatarUrl")
       .populate("members.userId", "_id fullName avatarUrl isOnline");
   },
+  leaveGroup: async ({ currentUserId, conversationId }) => {
+    if (!currentUserId) {
+      const error = new Error("Bạn chưa đăng nhập");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      const error = new Error("conversationId không hợp lệ");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      type: "group",
+      isDeleted: false,
+    });
+
+    if (!conversation) {
+      const error = new Error("Không tìm thấy nhóm");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const currentMemberIndex = conversation.members.findIndex(
+      (m) => m.userId.toString() === currentUserId.toString(),
+    );
+
+    if (currentMemberIndex === -1) {
+      const error = new Error("Bạn không thuộc nhóm này");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const currentMember = conversation.members[currentMemberIndex];
+
+    // Trưởng nhóm không được tự rời nếu nhóm vẫn còn người khác
+    if (currentMember.role === "owner") {
+      if (conversation.members.length === 1) {
+        conversation.members = [];
+        conversation.ownerId = null;
+        conversation.isDeleted = true;
+        await conversation.save();
+
+        return {
+          conversationId,
+          leftUserId: currentUserId,
+          isDisbanded: true,
+        };
+      }
+
+      const error = new Error(
+        "Bạn là trưởng nhóm. Hãy bổ nhiệm trưởng nhóm mới hoặc giải tán nhóm trước khi rời nhóm",
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    conversation.members.splice(currentMemberIndex, 1);
+
+    if (conversation.members.length === 0) {
+      conversation.isDeleted = true;
+    }
+
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(conversationId)
+      .populate("ownerId", "_id fullName avatarUrl")
+      .populate("members.userId", "_id fullName avatarUrl isOnline")
+      .populate("lastMessageId");
+
+    return {
+      conversationId,
+      leftUserId: currentUserId,
+      conversation: updatedConversation,
+    };
+  },
 };
 module.exports = { ConversationService };

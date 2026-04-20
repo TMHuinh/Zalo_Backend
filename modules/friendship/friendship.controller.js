@@ -246,7 +246,13 @@ const FriendshipController = {
   // ===============================
   getFriends: async (req, res, next) => {
     try {
-      const data = await FriendshipService.getFriends(req.userId);
+      const excludeUserIds = req.query.excludeUserIds
+        ? req.query.excludeUserIds.split(",").filter(Boolean)
+        : [];
+      const data = await FriendshipService.getFriends(
+        req.userId,
+        excludeUserIds,
+      );
       res.json({ data });
     } catch (err) {
       next(err);
