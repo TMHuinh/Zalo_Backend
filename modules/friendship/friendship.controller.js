@@ -110,7 +110,31 @@ const FriendshipController = {
 
       const requesterId = result.friendship.requesterId;
 
+      // 1. Lấy đầy đủ thông tin của cả người đồng ý và người gửi lời mời
       const user = await UserService.getUserById(userId);
+      const requester = await UserService.getUserById(requesterId);
+
+      // 2. Chuyển conversation thành plain object để có thể chỉnh sửa dữ liệu
+      let convData = result.conversation;
+      if (typeof convData.toObject === 'function') {
+        convData = convData.toObject();
+      } else if (typeof convData.toJSON === 'function') {
+        convData = convData.toJSON();
+      }
+
+      // 3. "Nhồi" thông tin User đầy đủ vào mảng members thay vì chỉ để ID
+      convData.members = convData.members.map((member) => {
+        // Đưa ID về string để so sánh an toàn
+        const mId = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+        
+        if (mId === userId.toString()) {
+          return { ...member, userId: user };
+        }
+        if (mId === requesterId.toString()) {
+          return { ...member, userId: requester };
+        }
+        return member;
+      });
 
       const noti = await NotificationService.create({
         userId: requesterId,
@@ -127,10 +151,9 @@ const FriendshipController = {
 
       await emitNotification(io, requesterId, noti);
 
-      io.to(requesterId.toString()).emit(
-        "new_conversation",
-        result.conversation,
-      );
+      // 4. Phát socket convData ĐÃ CÓ FULL INFO cho cả 2 người
+      io.to(requesterId.toString()).emit("new_conversation", convData);
+      io.to(userId.toString()).emit("new_conversation", convData);
 
       res.json({
         message: "Đã chấp nhận lời mời",
