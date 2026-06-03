@@ -74,7 +74,7 @@ const MessageController = {
 
   sendChatBotMessage: async (req, res, next) => {
     try {
-      const { conversationId, content, replyToMessageId } = req.body;
+      const { conversationId, content, replyToMessageId, topic } = req.body;
       const userSenderId = req.userId;
 
       if (!conversationId || !content?.trim()) {
@@ -102,6 +102,7 @@ Yêu cầu:
 - Nội dung chính là HTML đơn giản: p, ul, ol, li, b, i, br
 - Không dùng style, script, iframe, table
 - Không cần tạo ảnh nếu người dùng không có yêu cầu rõ là tạo ảnh
+- Chỉ trả lời các câu hỏi liên quan đến topic là ${topic}
 QUAN TRỌNG:
 - Nếu cần hình minh họa:
   + CHỈ sử dụng ảnh từ các nguồn có thật: bằng cách tìm kiếm trên google 
