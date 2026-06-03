@@ -36,5 +36,9 @@ router.get(
   authMiddleware,
   MessageController.getConversationMedia,
 );
-
+router.post(
+  "/conversation/summary",
+  authMiddleware,
+  MessageController.summarizeConversationContent,
+);
 module.exports = router;
