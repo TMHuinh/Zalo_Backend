@@ -352,6 +352,179 @@ ${content}
       next(error);
     }
   },
+  summarizeConversationContent: async (req, res, next) => {
+    try {
+      const messages = getMessagesFromBody(req.body);
+
+      if (!Array.isArray(messages) || messages.length === 0) {
+        throw new Error("Thiếu dữ liệu tin nhắn cần tóm tắt");
+      }
+
+      const transcript = buildSummaryTranscript(messages);
+
+      if (!transcript.trim()) {
+        return res.status(200).json(
+          ApiResponse(1000, {
+            summary:
+              "<p>Cuộc trò chuyện chưa có nội dung văn bản để tóm tắt.</p>",
+            keyPoints: [],
+            actionItems: [],
+          }),
+        );
+      }
+
+      const prompt = `
+Bạn là trợ lý tóm tắt nội dung cuộc trò chuyện.
+
+Yêu cầu bắt buộc:
+- Trả lời bằng tiếng Việt
+- Chỉ tóm tắt dựa trên dữ liệu hội thoại được cung cấp
+- Không bịa thêm thông tin ngoài nội dung hội thoại
+- Nếu có tin nhắn âm thanh chưa có transcript, chỉ ghi nhận là có audio, không đoán nội dung audio
+- Bỏ qua các thông tin kỹ thuật như _id, seenBy, avatarUrl, __v, status
+- Nội dung HTML đơn giản, chỉ dùng: p, ul, ol, li, b, i, br
+- Không dùng style, script, iframe, table
+- Nếu có việc cần làm rõ ràng thì đưa vào actionItems
+- Nếu không có việc cần làm thì actionItems = []
+
+Trả về đúng JSON, không markdown, không giải thích ngoài JSON:
+{
+  "summary": "<p>...</p>",
+  "keyPoints": ["ý chính 1", "ý chính 2"],
+  "actionItems": ["việc cần làm 1", "việc cần làm 2"]
+}
+
+Dữ liệu hội thoại đã được làm sạch, sắp xếp từ cũ đến mới:
+"""
+${transcript}
+"""
+`;
+
+      const result = await model.generateContent(prompt);
+      const rawText = result?.response?.text?.() || "";
+
+      let summaryData = extractJsonFromText(rawText);
+
+      if (!summaryData) {
+        summaryData = {
+          summary: rawText?.trim()
+            ? `<p>${stripHtml(rawText.trim())}</p>`
+            : "<p>Không thể tóm tắt nội dung lúc này.</p>",
+          keyPoints: [],
+          actionItems: [],
+        };
+      }
+
+      return res.status(200).json(
+        ApiResponse(1000, {
+          summary:
+            typeof summaryData.summary === "string" &&
+            summaryData.summary.trim()
+              ? summaryData.summary.trim()
+              : "<p>Không thể tóm tắt nội dung lúc này.</p>",
+
+          keyPoints: Array.isArray(summaryData.keyPoints)
+            ? summaryData.keyPoints.filter((item) => typeof item === "string")
+            : [],
+
+          actionItems: Array.isArray(summaryData.actionItems)
+            ? summaryData.actionItems.filter((item) => typeof item === "string")
+            : [],
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
 };
+
+////////HELPER//////////////////
+
+function stripHtml(input = "") {
+  return String(input)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getSenderName(senderId) {
+  if (!senderId) return "Không rõ";
+
+  if (typeof senderId === "object") {
+    return senderId.fullName || senderId.name || senderId._id || "Không rõ";
+  }
+
+  return String(senderId);
+}
+
+function formatAttachmentForSummary(attachment) {
+  if (!attachment) return "";
+
+  if (attachment.type === "audio") {
+    return `[Tin nhắn âm thanh: ${attachment.fileName || "audio"}, thời lượng ${
+      attachment.duration || 0
+    } giây. Chưa có transcript nên không biết nội dung audio.]`;
+  }
+
+  if (attachment.type === "image") {
+    return `[Hình ảnh: ${attachment.fileName || attachment.url || "image"}]`;
+  }
+
+  if (attachment.type === "video") {
+    return `[Video: ${attachment.fileName || attachment.url || "video"}]`;
+  }
+
+  return `[Tệp đính kèm: ${attachment.fileName || attachment.url || "file"}]`;
+}
+
+function buildSummaryTranscript(messages = []) {
+  if (!Array.isArray(messages)) return "";
+
+  return messages
+    .filter((msg) => msg && !msg.isDeleted && !msg.isRecalled)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .map((msg) => {
+      const senderName = getSenderName(msg.senderId);
+
+      const time = msg.createdAt
+        ? new Date(msg.createdAt).toLocaleString("vi-VN", {
+            timeZone: "Asia/Ho_Chi_Minh",
+          })
+        : "";
+
+      const content = stripHtml(msg.content || msg.transcript || "");
+
+      const attachments = Array.isArray(msg.attachments)
+        ? msg.attachments
+            .map(formatAttachmentForSummary)
+            .filter(Boolean)
+            .join(" ")
+        : "";
+
+      const replyContent = msg.replyToMessageId?.content
+        ? `Trả lời tin nhắn: "${stripHtml(msg.replyToMessageId.content)}".`
+        : "";
+
+      const finalText = [content, attachments, replyContent]
+        .filter(Boolean)
+        .join(" ");
+
+      if (!finalText.trim()) return null;
+
+      return `[${time}] ${senderName}: ${finalText}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function getMessagesFromBody(body) {
+  // FE gửi thẳng result.data
+  if (Array.isArray(body)) return body;
+
+  // Phòng trường hợp sau này FE đổi sang { messages: [...] }
+  if (Array.isArray(body?.messages)) return body.messages;
+
+  return [];
+}
 
 module.exports = { MessageController };
