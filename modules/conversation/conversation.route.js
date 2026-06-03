@@ -11,6 +11,12 @@ router.post(
   ConversationController.createGroupConversation,
 );
 
+router.post(
+  "/direct",
+  authMiddleware,
+  ConversationController.getOrCreateDirectConversation,
+);
+
 router.post("/pin", authMiddleware, ConversationController.pinMessage);
 
 router.delete("/pin", authMiddleware, ConversationController.unpinMessage);

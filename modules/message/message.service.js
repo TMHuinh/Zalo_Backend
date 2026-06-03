@@ -271,11 +271,10 @@ const MessageService = {
       throw AppError(404, "Không tìm thấy cuộc trò chuyện");
     }
 
-    // Lấy mốc thời gian xóa của user này
     const member = conversation.members.find(
       (m) => m.userId.toString() === userId.toString(),
     );
-    const deleteThreshold = member?.deletedAt || new Date(0);
+    const deleteThreshold = member?.messagesHiddenSince || member?.deletedAt || new Date(0);
 
     const skip = (page - 1) * limit;
 
