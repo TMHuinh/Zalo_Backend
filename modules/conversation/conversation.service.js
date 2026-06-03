@@ -475,9 +475,12 @@ const ConversationService = {
         "members.userId": userId,
       },
       {
-        $set: { "members.$.deletedAt": new Date() },
+        $set: {
+          "members.$.deletedAt": new Date(),
+          "members.$.messagesHiddenSince": new Date(),
+        },
       },
-      { new: true },
+      { new: true, timestamps: false },
     );
 
     if (!conversation) {
@@ -860,6 +863,38 @@ const ConversationService = {
       leftUserId: currentUserId,
       conversation: updatedConversation,
     };
+  },
+  getOrCreateDirectConversation: async ({ currentUserId, targetUserId }) => {
+    const users = await User.find({
+      _id: { $in: [currentUserId, targetUserId] },
+      isDeleted: { $ne: true },
+    });
+    if (users.length !== 2) {
+      const error = new Error("Một trong hai người dùng không tồn tại");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    let conversation = await Conversation.findOne({
+      type: "direct",
+      "members.userId": { $all: [currentUserId, targetUserId] },
+    });
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        type: "direct",
+        members: [
+          { userId: currentUserId, role: "member", joinedAt: new Date() },
+          { userId: targetUserId, role: "member", joinedAt: new Date() },
+        ],
+      });
+    }
+
+    const populated = await Conversation.findById(conversation._id)
+      .populate("lastMessageId")
+      .populate("members.userId", "_id fullName avatarUrl");
+
+    return populated;
   },
 };
 module.exports = { ConversationService };

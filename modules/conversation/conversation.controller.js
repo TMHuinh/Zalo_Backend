@@ -348,6 +348,25 @@ const ConversationController = {
     }
   },
 
+  getOrCreateDirectConversation: async (req, res, next) => {
+    try {
+      const currentUserId = req.userId;
+      const { targetUserId } = req.body;
+      const conversation =
+        await ConversationService.getOrCreateDirectConversation({
+          currentUserId,
+          targetUserId,
+        });
+      return res.status(200).json({
+        code: 1000,
+        message: "Thành công",
+        result: conversation,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   deleteConversation: async (req, res, next) => {
     try {
       const { conversationId } = req.params;

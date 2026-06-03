@@ -1,6 +1,34 @@
 const { ApiResponse } = require("../../utils/response");
 const { MessageService } = require("./message.service");
+const Conversation = require("../../models/conversation.model");
 const { model } = require("../../utils/GeminiAI");
+
+const emitNewMessageEvents = async (io, conversationId, message, senderId) => {
+  io.to(conversationId.toString()).emit("new_message", message);
+
+  const conversation = await Conversation.findById(conversationId)
+    .populate("lastMessageId")
+    .populate("members.userId", "_id fullName avatarUrl isOnline");
+  if (!conversation) return;
+
+  const convData = conversation.toObject
+    ? conversation.toObject()
+    : conversation;
+  const msgTime = new Date(message.createdAt || Date.now()).getTime();
+  conversation.members.forEach((member) => {
+    const uid = member.userId?._id || member.userId;
+    const deletedTime = member.deletedAt
+      ? new Date(member.deletedAt).getTime()
+      : 0;
+    if (
+      member.deletedAt &&
+      msgTime > deletedTime &&
+      uid?.toString() !== senderId.toString()
+    ) {
+      io.to(uid.toString()).emit("new_conversation", convData);
+    }
+  });
+};
 
 function extractJsonFromText(text) {
   try {
@@ -66,6 +94,8 @@ const MessageController = {
       });
 
       const io = req.app.get("io");
+      emitNewMessageEvents(io, conversationId, message, senderId);
+
       return res.status(201).json(ApiResponse(1000, message));
     } catch (error) {
       next(error);
@@ -174,6 +204,19 @@ ${content}
           attachments: [],
           replyToMessageId: null,
         });
+      }
+
+      const io = req.app.get("io");
+      if (userMessage) {
+        emitNewMessageEvents(io, conversationId, userMessage, userSenderId);
+      }
+      if (botMessage) {
+        emitNewMessageEvents(
+          io,
+          conversationId,
+          botMessage,
+          BOT_SENDER_ID,
+        );
       }
 
       return res.status(200).json(

@@ -59,7 +59,11 @@ const conversationSchema = new mongoose.Schema(
         },
         deletedAt: {
           type: Date,
-          default: null, // Mặc định là null (chưa xóa lần nào)
+          default: null,
+        },
+        messagesHiddenSince: {
+          type: Date,
+          default: null,
         },
       },
     ],
