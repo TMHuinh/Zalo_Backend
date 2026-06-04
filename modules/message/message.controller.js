@@ -81,7 +81,16 @@ const MessageController = {
 
       const senderId = req.userId;
       const files = req.files || [];
+      const isViolation = await isViolationContent(content);
 
+      if (isViolation) {
+        return res.status(400).json(
+          ApiResponse(4001, {
+            isViolation: true,
+            message: "Tin nhắn chứa nội dung vi phạm quy tắc cộng đồng.",
+          }),
+        );
+      }
       const message = await MessageService.saveMessage({
         conversationId,
         senderId,
@@ -525,6 +534,66 @@ function getMessagesFromBody(body) {
   if (Array.isArray(body?.messages)) return body.messages;
 
   return [];
+}
+
+async function isViolationContent(content = "") {
+  const text = stripHtml(content || "");
+
+  if (!text.trim()) return false;
+
+  const prompt = `
+Bạn là hệ thống kiểm duyệt nội dung tiếng Việt cho ứng dụng chat.
+
+Nhiệm vụ:
+- Kiểm tra nội dung người dùng có vi phạm hay không.
+- Nếu có vi phạm trả về isViolation = true.
+- Nếu không vi phạm trả về isViolation = false.
+
+Các loại nội dung được xem là vi phạm:
+- Chửi thề, thô tục, xúc phạm người khác
+- Phân biệt vùng miền, miệt thị địa phương
+- Phân biệt giới tính, tôn giáo, dân tộc, ngoại hình
+- Công kích cá nhân, nhục mạ, bắt nạt
+- Đe dọa, kích động bạo lực
+- Nội dung khiêu dâm hoặc quấy rối tình dục
+- Ngôn từ thù ghét
+
+Không xem là vi phạm nếu:
+- Người dùng đang hỏi nghĩa của một từ xấu
+- Người dùng trích dẫn để báo cáo hoặc nhờ kiểm tra
+- Nội dung có từ nhạy cảm nhưng không dùng để xúc phạm ai
+
+Trả về đúng JSON, không markdown, không giải thích:
+{
+  "isViolation": true,
+  "reason": "lý do ngắn gọn"
+}
+
+Hoặc:
+{
+  "isViolation": false,
+  "reason": ""
+}
+
+Nội dung cần kiểm tra:
+"""
+${text.slice(0, 4000)}
+"""
+`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const rawText = result?.response?.text?.() || "";
+
+    const data = extractJsonFromText(rawText);
+
+    return data?.isViolation === true;
+  } catch (error) {
+    console.error("❌ Violation check failed:", error);
+
+    // Chọn false để tránh AI lỗi làm người dùng không gửi được tin nhắn
+    return false;
+  }
 }
 
 module.exports = { MessageController };
