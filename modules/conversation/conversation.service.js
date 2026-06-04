@@ -183,7 +183,7 @@ const ConversationService = {
       return conversation;
     }
     conversation = await Conversation.create({
-      type: "direct",
+      type: "bot",
       name: AI_CONVERSATION_NAME,
       avatarUrl: AI_AVATAR_URL,
       ownerId: userId,
